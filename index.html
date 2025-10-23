@@ -42,15 +42,20 @@
             font-weight: 600;
             font-size: 14px;
         }
-        input, select { 
+        input, select, textarea { 
             width: 100%; 
             padding: 12px; 
             border: 2px solid #e0e0e0; 
             border-radius: 8px; 
             font-size: 15px;
             transition: border-color 0.3s;
+            font-family: inherit;
         }
-        input:focus, select:focus {
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -91,55 +96,61 @@
 <body>
     <div class="container">
         <h1>📋 Generador de Nota de Signatura</h1>
-        <p class="subtitle">Complete los campos para generar su documento</p>
+        <p class="subtitle">Complete los campos para generar el documento</p>
         
         <div class="form-group">
-            <label>📍 Dirección</label>
-            <input type="text" id="direccion" placeholder="Ej: Dirección de Asuntos Jurídicos">
+            <label>Ministerio/Secretaría</label>
+            <input type="text" id="ministerio" placeholder="Ej: Ministerio de Trabajo, Empleo y Seguridad Social">
         </div>
 
         <div class="form-group">
-            <label>📁 Número de Expediente</label>
-            <input type="text" id="expediente" placeholder="Ej: 2025-001">
+            <label>Subsecretaría</label>
+            <input type="text" id="subsecretaria" placeholder="Ej: Subsecretaría de Relaciones Laborales">
         </div>
 
         <div class="form-group">
-            <label>📄 Número de Dictamen</label>
-            <input type="text" id="dictamen" placeholder="Ej: 045/2025">
+            <label>Dirección</label>
+            <input type="text" id="direccion" placeholder="Ej: Dirección Nacional de Relaciones del Trabajo">
         </div>
 
         <div class="form-group">
-            <label>📅 Fecha de Dictamen</label>
-            <input type="date" id="fechaDictamen">
+            <label>Número de Expediente</label>
+            <input type="text" id="expediente" placeholder="Ej: EX-2025-12345678-APN-DGD#MT">
         </div>
 
         <div class="form-group">
-            <label>🌍 Ámbito</label>
+            <label>Partes Signatarias</label>
+            <textarea id="partes" placeholder="Ej: UNION OBRERA METALURGICA DE LA REPUBLICA ARGENTINA y ASOCIACION DE INDUSTRIALES METALURGICOS DE LA REPUBLICA ARGENTINA"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Fecha de Suscripción del Acuerdo</label>
+            <input type="date" id="fechaSuscripcion">
+        </div>
+
+        <div class="form-group">
+            <label>Número de CCT (si aplica)</label>
+            <input type="text" id="cct" placeholder="Ej: CCT 260/75">
+        </div>
+
+        <div class="form-group">
+            <label>Actividad</label>
+            <input type="text" id="actividad" placeholder="Ej: Industria Metalúrgica">
+        </div>
+
+        <div class="form-group">
+            <label>Ámbito de Aplicación</label>
             <select id="ambito">
                 <option value="Nacional">Nacional</option>
                 <option value="Provincial">Provincial</option>
                 <option value="Municipal">Municipal</option>
+                <option value="Empresarial">Empresarial</option>
             </select>
         </div>
 
         <div class="form-group">
-            <label>👥 Sindicato/Cámara Empresaria</label>
-            <input type="text" id="sindicato" placeholder="Nombre del sindicato o cámara">
-        </div>
-
-        <div class="form-group">
-            <label>🏢 Empresa/Entidad</label>
-            <input type="text" id="empresa" placeholder="Nombre de la empresa o entidad">
-        </div>
-
-        <div class="form-group">
-            <label>🔢 Número de Convenio</label>
-            <input type="text" id="numeroConvenio" placeholder="Ej: 1234/2025">
-        </div>
-
-        <div class="form-group">
-            <label>📅 Fecha de Celebración</label>
-            <input type="date" id="fechaCelebracion">
+            <label>Observaciones (opcional)</label>
+            <textarea id="observaciones" placeholder="Cualquier información adicional relevante"></textarea>
         </div>
 
         <button class="btn" onclick="generarPDF()">🔄 Generar Nota de Signatura</button>
@@ -160,45 +171,92 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
+            const ministerio = document.getElementById('ministerio').value;
+            const subsecretaria = document.getElementById('subsecretaria').value;
             const direccion = document.getElementById('direccion').value;
             const expediente = document.getElementById('expediente').value;
-            const dictamen = document.getElementById('dictamen').value;
-            const fechaDictamen = document.getElementById('fechaDictamen').value;
+            const partes = document.getElementById('partes').value;
+            const fechaSuscripcion = document.getElementById('fechaSuscripcion').value;
+            const cct = document.getElementById('cct').value;
+            const actividad = document.getElementById('actividad').value;
             const ambito = document.getElementById('ambito').value;
-            const sindicato = document.getElementById('sindicato').value;
-            const empresa = document.getElementById('empresa').value;
-            const numeroConvenio = document.getElementById('numeroConvenio').value;
-            const fechaCelebracion = document.getElementById('fechaCelebracion').value;
+            const observaciones = document.getElementById('observaciones').value;
 
             // Título
-            doc.setFontSize(18);
+            doc.setFontSize(16);
             doc.setFont(undefined, 'bold');
-            doc.text('NOTA DE SIGNATURA', 105, 30, { align: 'center' });
+            doc.text('NOTA DE SIGNATURA', 105, 20, { align: 'center' });
+
+            // Línea separadora
+            doc.setDrawColor(102, 126, 234);
+            doc.setLineWidth(0.5);
+            doc.line(20, 25, 190, 25);
 
             // Contenido
-            let y = 50;
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'normal');
-            
-            doc.text(`Dirección: ${direccion}`, 20, y);
-            y += 10;
-            doc.text(`Expediente N°: ${expediente}`, 20, y);
-            y += 10;
-            doc.text(`Dictamen N°: ${dictamen}`, 20, y);
-            y += 10;
-            doc.text(`Fecha de Dictamen: ${fechaDictamen}`, 20, y);
-            y += 15;
+            let y = 35;
+            doc.setFontSize(11);
             doc.setFont(undefined, 'bold');
-            doc.text(`Ámbito: ${ambito.toUpperCase()}`, 20, y);
+            
+            doc.text('ORGANISMO:', 20, y);
             doc.setFont(undefined, 'normal');
+            doc.text(ministerio, 50, y);
+            
+            y += 7;
+            doc.text(subsecretaria, 20, y);
+            
+            y += 7;
+            doc.text(direccion, 20, y);
+            
+            y += 12;
+            doc.setFont(undefined, 'bold');
+            doc.text('EXPEDIENTE:', 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(expediente, 50, y);
+            
+            y += 12;
+            doc.setFont(undefined, 'bold');
+            doc.text('PARTES SIGNATARIAS:', 20, y);
+            y += 7;
+            doc.setFont(undefined, 'normal');
+            const partesLineas = doc.splitTextToSize(partes, 170);
+            doc.text(partesLineas, 20, y);
+            y += partesLineas.length * 7;
+            
+            y += 5;
+            doc.setFont(undefined, 'bold');
+            doc.text('FECHA DE SUSCRIPCIÓN:', 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(fechaSuscripcion, 80, y);
+            
+            if (cct) {
+                y += 10;
+                doc.setFont(undefined, 'bold');
+                doc.text('CCT:', 20, y);
+                doc.setFont(undefined, 'normal');
+                doc.text(cct, 35, y);
+            }
+            
             y += 10;
-            doc.text(`Sindicato/Cámara: ${sindicato}`, 20, y);
+            doc.setFont(undefined, 'bold');
+            doc.text('ACTIVIDAD:', 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(actividad, 50, y);
+            
             y += 10;
-            doc.text(`Empresa/Entidad: ${empresa}`, 20, y);
-            y += 10;
-            doc.text(`Convenio N°: ${numeroConvenio}`, 20, y);
-            y += 10;
-            doc.text(`Fecha de Celebración: ${fechaCelebracion}`, 20, y);
+            doc.setFont(undefined, 'bold');
+            doc.text('ÁMBITO:', 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(ambito, 43, y);
+            
+            if (observaciones) {
+                y += 12;
+                doc.setFont(undefined, 'bold');
+                doc.text('OBSERVACIONES:', 20, y);
+                y += 7;
+                doc.setFont(undefined, 'normal');
+                const obsLineas = doc.splitTextToSize(observaciones, 170);
+                doc.text(obsLineas, 20, y);
+            }
 
             pdfDoc = doc;
             document.getElementById('preview').style.display = 'block';
