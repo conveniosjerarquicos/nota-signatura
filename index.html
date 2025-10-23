@@ -6,37 +6,23 @@
   <title>Generador de Nota de Signatura</title>
   <style>
     *{box-sizing:border-box}
-    body{
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background:#f2f4f8; margin:0; padding:24px;
-    }
-    .container{
-      max-width: 920px; margin:0 auto; background:#fff; padding:28px 24px;
-      border-radius:16px; box-shadow:0 12px 40px rgba(16,24,40,.08);
-    }
-    h1{margin:0 0 6px; text-align:center; color:#1f2937; font-size:26px}
-    .subtitle{margin:0 0 20px; text-align:center; color:#6b7280; font-size:14px}
-    .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+    body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:#f2f4f8;margin:0;padding:24px}
+    .container{max-width:920px;margin:0 auto;background:#fff;padding:28px 24px;border-radius:16px;box-shadow:0 12px 40px rgba(16,24,40,.08)}
+    h1{margin:0 0 6px;text-align:center;color:#1f2937;font-size:26px}
+    .subtitle{margin:0 0 20px;text-align:center;color:#6b7280;font-size:14px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     .full{grid-column:1 / -1}
-    label{display:block; font-weight:600; color:#111827; margin-bottom:6px; font-size:14px}
-    input, select, textarea{
-      width:100%; padding:12px; border:1.8px solid #e5e7eb; border-radius:10px; font-size:15px;
-      font-family:inherit; background:#fff; outline:none; transition:border-color .2s;
-    }
-    textarea{min-height:140px; resize:vertical}
-    input:focus, select:focus, textarea:focus{border-color:#6366f1}
-    .section{background:#f9fafb; border:1px solid #eef2f7; padding:16px; border-radius:12px; margin:18px 0}
-    .section h3{margin:0 0 10px; font-size:16px; color:#1f2937}
-    .btn{
-      display:inline-flex; align-items:center; justify-content:center; gap:8px;
-      padding:12px 16px; border:none; border-radius:10px; cursor:pointer; font-weight:700;
-      background:#6366f1; color:#fff; width:100%; font-size:16px;
-      box-shadow:0 8px 20px rgba(99,102,241,.25); transition:transform .15s;
-    }
+    label{display:block;font-weight:600;color:#111827;margin-bottom:6px;font-size:14px}
+    input,select,textarea{width:100%;padding:12px;border:1.8px solid #e5e7eb;border-radius:10px;font-size:15px;font-family:inherit;background:#fff;outline:none;transition:border-color .2s}
+    textarea{min-height:140px;resize:vertical}
+    input:focus,select:focus,textarea:focus{border-color:#6366f1}
+    .section{background:#f9fafb;border:1px solid #eef2f7;padding:16px;border-radius:12px;margin:18px 0}
+    .section h3{margin:0 0 10px;font-size:16px;color:#1f2937}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:700;background:#6366f1;color:#fff;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(99,102,241,.25);transition:transform .15s}
     .btn:hover{transform:translateY(-1px)}
-    .preview{margin-top:18px; display:none}
-    .note{font-size:12px; color:#6b7280; margin-top:8px}
-    @media (max-width: 760px){ .grid{grid-template-columns:1fr} }
+    .preview{margin-top:18px;display:none}
+    .note{font-size:12px;color:#6b7280;margin-top:8px}
+    @media (max-width:760px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -129,7 +115,7 @@
     </div>
 
     <button class="btn" onclick="generarPDF()">🔄 Generar PDF</button>
-    <div class="note">En el PDF solo se colocarán los valores ingresados (sin etiquetas).</div>
+    <div class="note">En el PDF solo se colocarán los valores ingresados (sin etiquetas). “CLONA” y “TA” se muestran al pie con letra más chica.</div>
 
     <div class="preview" id="preview">
       <p style="color:#10b981;font-weight:700;margin:10px 0 0">✅ Documento listo. Podés descargarlo:</p>
@@ -139,26 +125,27 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    // ⚠️ Reemplazá estas URLs por las de tus imágenes (raw de GitHub)
+    // 👉 Reemplazar por tus URLs raw
     const HEADER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/membrete.png";
     const FOOTER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/pie.png";
 
-    // jsPDF A4 (mm)
+    // jsPDF A4 en mm
     const PAGE_W = 210, PAGE_H = 297;
-    // Altos máximos (se respeta proporción de la imagen, sin estirar)
-    const HEADER_MAX_H = 18; // más chico que antes
-    const FOOTER_MAX_H = 16;
+    const MARGIN_X = 20;                 // márgenes laterales del documento
+    const CONTENT_W = PAGE_W - MARGIN_X*2;
 
-    const MARGIN_X = 20;
-    let HEADER_H = 14; // se recalcula con la relación de aspecto real
-    let FOOTER_H = 12;
+    // Membrete/Pie dentro de márgenes (ajuste proporcional, sin estirar)
+    const HEADER_MAX_H = 14;             // más chico y dentro de márgenes
+    const FOOTER_MAX_H = 12;
+
+    let HEADER_H = 10;
+    let FOOTER_H = 10;
 
     function toggleClona(){
       const v = document.getElementById('clona').value;
       document.getElementById('clonaBox').style.display = (v === 'SI') ? 'block' : 'none';
     }
 
-    // Precarga de imágenes y cálculo de alto proporcional
     let headerImg=null, footerImg=null;
     function loadImage(src){
       return new Promise((res, rej)=>{
@@ -173,29 +160,27 @@
       try{
         [headerImg, footerImg] = await Promise.all([loadImage(HEADER_URL), loadImage(FOOTER_URL)]);
         if (headerImg && headerImg.width) {
-          const h = PAGE_W * (headerImg.height / headerImg.width);
-          HEADER_H = Math.min(h, HEADER_MAX_H);
+          const proportional = CONTENT_W * (headerImg.height / headerImg.width);
+          HEADER_H = Math.min(proportional, HEADER_MAX_H);
         }
         if (footerImg && footerImg.width) {
-          const h = PAGE_W * (footerImg.height / footerImg.width);
-          FOOTER_H = Math.min(h, FOOTER_MAX_H);
+          const proportional = CONTENT_W * (footerImg.height / footerImg.width);
+          FOOTER_H = Math.min(proportional, FOOTER_MAX_H);
         }
       }catch(e){ console.warn("No se pudieron precargar las imágenes", e); }
     })();
 
     function addHeaderFooter(doc){
       if(headerImg){
-        const h = HEADER_H;
-        doc.addImage(headerImg, "PNG", 0, 0, PAGE_W, h);
+        doc.addImage(headerImg, "PNG", MARGIN_X, 10, CONTENT_W, HEADER_H); // dentro de márgenes
       }
       if(footerImg){
-        const h = FOOTER_H;
-        doc.addImage(footerImg, "PNG", 0, PAGE_H - h, PAGE_W, h);
+        doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - FOOTER_H - 8, CONTENT_W, FOOTER_H); // dentro de márgenes
       }
     }
 
-    function topY(){ return HEADER_H + 10; }
-    function bottomY(){ return PAGE_H - FOOTER_H - 12; }
+    function topY(){ return 10 + HEADER_H + 8; }                     // inicio de texto tras el membrete
+    function bottomY(){ return PAGE_H - FOOTER_H - 12; }              // límite superior del pie
 
     function ensureSpace(doc, needed, yRef){
       if(yRef.value + needed > bottomY()){
@@ -203,13 +188,14 @@
       }
     }
 
-    function textBlock(doc, value, width, yRef, lineH=5){
+    function textBlock(doc, value, width, yRef, fontSize=12, lineH=5, align="left"){
       const val = (value || "").toString().trim();
       if(!val) return;
+      doc.setFontSize(fontSize);
       const lines = doc.splitTextToSize(val, width);
       const h = lines.length * lineH + 1;
       ensureSpace(doc, h, yRef);
-      doc.text(lines, MARGIN_X, yRef.value);
+      doc.text(lines, MARGIN_X, yRef.value, { align });
       yRef.value += h + 3;
     }
 
@@ -220,7 +206,7 @@
       const doc = new jsPDF({ unit:"mm", format:"a4" });
       addHeaderFooter(doc);
 
-      // Datos
+      // === Captura de datos ===
       const fecha          = document.getElementById('fecha').value;
       const provincia      = document.getElementById('provincia').value;
       const nombreConvenio = document.getElementById('nombreConvenio').value;
@@ -238,49 +224,56 @@
       const conveniosClona = document.getElementById('conveniosClona').value;
       const numerosTA      = document.getElementById('numerosTA').value;
 
+      // === Composición tipo carta ===
       let y = { value: topY() };
-      const CONTENT_W = PAGE_W - MARGIN_X*2;
 
-      // ===== Sección 1: Encabezado de datos (solo valores) =====
-      doc.setFontSize(12);
+      // 1) Encabezado: fecha y datos del prestador (solo valores, alineado a la izquierda)
       doc.setFont(undefined, "normal");
-      textBlock(doc, fecha,          CONTENT_W, y);
-      textBlock(doc, provincia,      CONTENT_W, y);
-      textBlock(doc, nombreConvenio, CONTENT_W, y);
-      textBlock(doc, numeroConvenio, CONTENT_W, y);
+      textBlock(doc, fecha,          CONTENT_W, y, 12, 5, "left");
+      textBlock(doc, provincia,      CONTENT_W, y, 12, 5, "left");
+      textBlock(doc, nombreConvenio, CONTENT_W, y, 12, 5, "left");
+      textBlock(doc, numeroConvenio, CONTENT_W, y, 12, 5, "left");
 
-      // separador visual
-      ensureSpace(doc, 6, y);
-      doc.setDrawColor(200); doc.setLineWidth(0.3);
-      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
-      y.value += 6;
+      // Separación clara antes del cuerpo
+      y.value += 4;
 
-      // ===== Sección 2: Cuerpo de la Nota =====
-      doc.setFontSize(12);
-      textBlock(doc, cuerpoNota, CONTENT_W, y, 5);
+      // 2) Cuerpo de la nota (párrafos, con aire)
+      textBlock(doc, cuerpoNota, CONTENT_W, y, 12, 5.2, "left");
+      y.value += 6; // más espacio antes de firmantes
 
-      // separador visual
-      ensureSpace(doc, 6, y);
-      doc.setDrawColor(220); doc.setLineWidth(0.3);
-      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
-      y.value += 6;
-
-      // ===== Sección 3: Firmantes (solo valores presentes) =====
-      doc.setFontSize(12);
-      textBlock(doc, auxiliar,      CONTENT_W, y);
-      textBlock(doc, referente,     CONTENT_W, y);
-      if((subgerente||"").trim()!=="") textBlock(doc, subgerente, CONTENT_W, y);
-      textBlock(doc, firmante,      CONTENT_W, y);
-      if((firmanteEmail||"").trim()!=="") textBlock(doc, firmanteEmail, CONTENT_W, y);
-
-      // ===== Sección 4: CLONA y TA (más chico, al final) =====
+      // 3) Firmantes (solo valores, con más aire entre líneas)
+      textBlock(doc, auxiliar,      CONTENT_W, y, 12, 5.2, "left");
       y.value += 2;
-      doc.setFontSize(10); // tipografía más chica
-      if(clona === "SI" && (conveniosClona||"").trim()!==""){
-        textBlock(doc, conveniosClona, CONTENT_W, y, 4.5);
+      textBlock(doc, referente,     CONTENT_W, y, 12, 5.2, "left");
+      y.value += 2;
+      if((subgerente||"").trim()!==""){
+        textBlock(doc, subgerente,  CONTENT_W, y, 12, 5.2, "left");
+        y.value += 2;
       }
+      textBlock(doc, firmante,      CONTENT_W, y, 12, 5.2, "left");
+      if((firmanteEmail||"").trim()!==""){
+        textBlock(doc, firmanteEmail, CONTENT_W, y, 11, 5, "left");
+      }
+
+      // 4) Pie: CLONA y TA con etiquetas y letra más chica
+      y.value += 6;
+      doc.setFontSize(10);
+      if(clona === "SI" && (conveniosClona||"").trim()!==""){
+        ensureSpace(doc, 12, y);
+        doc.setFont(undefined, "bold");
+        doc.text("CLONA", MARGIN_X, y.value);
+        y.value += 5;
+        doc.setFont(undefined, "normal");
+        textBlock(doc, conveniosClona, CONTENT_W, y, 10, 4.5, "left");
+      }
+
       if((numerosTA||"").trim()!==""){
-        textBlock(doc, numerosTA, CONTENT_W, y, 4.5);
+        ensureSpace(doc, 12, y);
+        doc.setFont(undefined, "bold");
+        doc.text("TA", MARGIN_X, y.value);
+        y.value += 5;
+        doc.setFont(undefined, "normal");
+        textBlock(doc, numerosTA, CONTENT_W, y, 10, 4.5, "left");
       }
 
       pdfDoc = doc;
