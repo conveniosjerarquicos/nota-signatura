@@ -1,351 +1,188 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de Nota de Signatura</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container { 
-            max-width: 900px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 40px; 
-            border-radius: 15px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
-        }
-        h1 { 
-            color: #2c3e50; 
-            margin-bottom: 10px; 
-            text-align: center;
-            font-size: 28px;
-        }
-        .subtitle {
-            text-align: center;
-            color: #7f8c8d;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 15px;
-        }
-        .form-group { 
-            margin-bottom: 15px; 
-        }
-        label { 
-            display: block; 
-            margin-bottom: 6px; 
-            color: #2c3e50; 
-            font-weight: 600;
-            font-size: 14px;
-        }
-        input, select, textarea { 
-            width: 100%; 
-            padding: 12px; 
-            border: 2px solid #e0e0e0; 
-            border-radius: 8px; 
-            font-size: 15px;
-            transition: border-color 0.3s;
-            font-family: inherit;
-        }
-        textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        .btn { 
-            width: 100%; 
-            padding: 15px; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            font-size: 16px; 
-            font-weight: 600;
-            cursor: pointer; 
-            margin-top: 10px;
-            transition: transform 0.2s;
-        }
-        .btn:hover { 
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        .btn-download {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        }
-        .preview { 
-            margin-top: 30px; 
-            padding: 20px; 
-            border: 2px solid #667eea; 
-            border-radius: 10px; 
-            background: #f8f9fa; 
-        }
-        .preview h2 { 
-            color: #2c3e50; 
-            margin-bottom: 15px;
-            font-size: 20px;
-        }
-        .clona-group {
-            display: none;
-            margin-top: 15px;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-        }
-        @media (max-width: 768px) {
-            .row {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📋 Generador de Nota de Signatura</h1>
-        <p class="subtitle">Complete todos los campos del formulario</p>
-        
-        <!-- DATOS BÁSICOS -->
-        <div class="section">
-            <div class="section-title">📌 Datos del Convenio</div>
-            
-            <div class="row">
-                <div class="form-group">
-                    <label>Fecha</label>
-                    <input type="date" id="fecha">
-                </div>
-                <div class="form-group">
-                    <label>Provincia</label>
-                    <input type="text" id="provincia" placeholder="Ej: Buenos Aires">
-                </div>
-            </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  // 👉 REEMPLAZA estas URLs por las tuyas (raw de GitHub)
+  const HEADER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/membrete.png";
+  const FOOTER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/pie.png";
 
-            <div class="form-group">
-                <label>Nombre del Convenio</label>
-                <input type="text" id="nombreConvenio" placeholder="Ej: Convenio Colectivo de Trabajo - Industria Metalúrgica">
-            </div>
+  // Medidas A4 en jsPDF (mm)
+  const PAGE_W = 210;
+  const PAGE_H = 297;
 
-            <div class="form-group">
-                <label>Número de Convenio</label>
-                <input type="text" id="numeroConvenio" placeholder="Ej: 260/75">
-            </div>
-        </div>
+  // Alturas del membrete y del pie (ajustá a tu diseño)
+  const HEADER_H = 35;   // alto del header
+  const FOOTER_H = 22;   // alto del footer
+  const MARGIN_X = 20;   // margen horizontal de texto
+  const TOP_Y   =  HEADER_H + 10;                 // inicio del contenido
+  const BOTTOM_Y = PAGE_H - FOOTER_H - 10;        // límite antes del pie
 
-        <!-- CUERPO DE LA NOTA -->
-        <div class="section">
-            <div class="section-title">📝 Cuerpo de la Nota</div>
-            
-            <div class="form-group">
-                <label>Texto del Cuerpo</label>
-                <textarea id="cuerpoNota" placeholder="Escriba aquí el contenido principal de la nota..."></textarea>
-            </div>
-        </div>
+  // Pre-cargamos imágenes para no tener problemas asíncronos al generar
+  let headerImg = null;
+  let footerImg = null;
+  let imagesReady = false;
 
-        <!-- FIRMANTES -->
-        <div class="section">
-            <div class="section-title">✍️ Firmantes</div>
-            
-            <div class="form-group">
-                <label>Nombre del Auxiliar</label>
-                <input type="text" id="auxiliar" placeholder="Nombre completo del auxiliar">
-            </div>
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous"; // por si se sirve desde raw.githubusercontent
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
 
-            <div class="form-group">
-                <label>Nombre del Referente</label>
-                <input type="text" id="referente" placeholder="Nombre completo del referente">
-            </div>
+  (async function preload() {
+    try {
+      [headerImg, footerImg] = await Promise.all([
+        loadImage(HEADER_URL),
+        loadImage(FOOTER_URL)
+      ]);
+      imagesReady = true;
+    } catch (e) {
+      console.error("No se pudieron cargar las imágenes de membrete/pie:", e);
+    }
+  })();
 
-            <div class="form-group">
-                <label>Nombre del Subgerente (opcional)</label>
-                <input type="text" id="subgerente" placeholder="Dejar en blanco si no corresponde">
-            </div>
+  function addHeaderFooter(doc) {
+    // Header
+    if (headerImg) {
+      doc.addImage(headerImg, "PNG", 0, 0, PAGE_W, HEADER_H);
+    }
+    // Footer
+    if (footerImg) {
+      doc.addImage(footerImg, "PNG", 0, PAGE_H - FOOTER_H, PAGE_W, FOOTER_H);
+    }
+  }
 
-            <div class="form-group">
-                <label>Nombre del Firmante del Convenio</label>
-                <input type="text" id="firmante" placeholder="Nombre completo del firmante">
-            </div>
-        </div>
+  function ensureSpace(doc, needed, yRef) {
+    // Si no hay espacio suficiente en la página, crea una nueva y vuelve a dibujar header/footer
+    if (yRef.value + needed > BOTTOM_Y) {
+      doc.addPage();
+      addHeaderFooter(doc);
+      yRef.value = TOP_Y;
+    }
+  }
 
-        <!-- CLONA -->
-        <div class="section">
-            <div class="section-title">🔗 CLONA (Convenios Relacionados)</div>
-            
-            <div class="form-group">
-                <label>¿Corresponde CLONA?</label>
-                <select id="clona" onchange="toggleClona()">
-                    <option value="NO">NO</option>
-                    <option value="SI">SI</option>
-                </select>
-            </div>
+  function writeLabelValue(doc, label, value, yRef) {
+    doc.setFont(undefined, "bold");
+    doc.text(label, MARGIN_X, yRef.value);
+    doc.setFont(undefined, "normal");
+    doc.text(value || "-", MARGIN_X + 30, yRef.value);
+    yRef.value += 7;
+  }
 
-            <div class="clona-group" id="clonaGroup">
-                <div class="form-group">
-                    <label>Convenios Relacionados</label>
-                    <textarea id="conveniosClona" placeholder="Liste los números de convenios relacionados (Ej: CCT 123/75, CCT 456/80)"></textarea>
-                </div>
-            </div>
-        </div>
+  function writeBlock(doc, title, text, width, yRef) {
+    doc.setFont(undefined, "bold");
+    doc.text(title, MARGIN_X, yRef.value);
+    yRef.value += 7;
 
-        <!-- TA -->
-        <div class="section">
-            <div class="section-title">📊 TA (Tasa Acumulada)</div>
-            
-            <div class="form-group">
-                <label>Números de TA</label>
-                <input type="text" id="numerosTA" placeholder="Ej: TA-001, TA-002, TA-003">
-            </div>
-        </div>
+    doc.setFont(undefined, "normal");
+    const lines = doc.splitTextToSize(text || "-", width);
+    // Altura aproximada del bloque
+    const blockHeight = lines.length * 5 + 2;
+    ensureSpace(doc, blockHeight, yRef);
+    doc.text(lines, MARGIN_X, yRef.value);
+    yRef.value += blockHeight + 3;
+  }
 
-        <button class="btn" onclick="generarPDF()">🔄 Generar Nota de Signatura</button>
+  let pdfDoc = null;
 
-        <div class="preview" id="preview" style="display:none;">
-            <h2>✅ Documento Generado</h2>
-            <p style="color: #27ae60; margin-bottom: 15px;">Su nota de signatura está lista para descargar</p>
-            <button class="btn btn-download" onclick="descargarPDF()">📥 Descargar PDF</button>
-        </div>
-    </div>
+  function generarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
-    <script>
-        function toggleClona() {
-            const clona = document.getElementById('clona').value;
-            const clonaGroup = document.getElementById('clonaGroup');
-            clonaGroup.style.display = clona === 'SI' ? 'block' : 'none';
-        }
+    // Si por alguna razón no se cargaron, seguimos, pero sin header/pie
+    addHeaderFooter(doc);
 
-        let pdfDoc = null;
+    // Captura de datos del formulario
+    const fecha          = document.getElementById('fecha').value;
+    const provincia      = document.getElementById('provincia').value;
+    const nombreConvenio = document.getElementById('nombreConvenio').value;
+    const numeroConvenio = document.getElementById('numeroConvenio').value;
+    const cuerpoNota     = document.getElementById('cuerpoNota').value;
+    const auxiliar       = document.getElementById('auxiliar').value;
+    const referente      = document.getElementById('referente').value;
+    const subgerente     = document.getElementById('subgerente').value;
+    const firmante       = document.getElementById('firmante').value;
+    const clona          = document.getElementById('clona').value;
+    const conveniosClona = document.getElementById('conveniosClona').value;
+    const numerosTA      = document.getElementById('numerosTA').value;
 
-        function generarPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
+    // Título
+    let y = { value: TOP_Y }; // usamos objeto para pasar por referencia
+    doc.setFontSize(16);
+    doc.setFont(undefined, "bold");
+    doc.text("NOTA DE SIGNATURA", PAGE_W / 2, y.value, { align: "center" });
+    y.value += 6;
 
-            const fecha = document.getElementById('fecha').value;
-            const provincia = document.getElementById('provincia').value;
-            const nombreConvenio = document.getElementById('nombreConvenio').value;
-            const numeroConvenio = document.getElementById('numeroConvenio').value;
-            const cuerpoNota = document.getElementById('cuerpoNota').value;
-            const auxiliar = document.getElementById('auxiliar').value;
-            const referente = document.getElementById('referente').value;
-            const subgerente = document.getElementById('subgerente').value;
-            const firmante = document.getElementById('firmante').value;
-            const clona = document.getElementById('clona').value;
-            const conveniosClona = document.getElementById('conveniosClona').value;
-            const numerosTA = document.getElementById('numerosTA').value;
+    // Línea decorativa
+    doc.setDrawColor(102, 126, 234);
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
+    y.value += 8;
 
-            // Encabezado
-            doc.setFontSize(18);
-            doc.setFont(undefined, 'bold');
-            doc.text('NOTA DE SIGNATURA', 105, 20, { align: 'center' });
+    doc.setFontSize(11);
 
-            doc.setDrawColor(102, 126, 234);
-            doc.setLineWidth(0.5);
-            doc.line(20, 25, 190, 25);
+    // Fila Fecha/Provincia
+    ensureSpace(doc, 14, y);
+    doc.setFont(undefined, "bold");
+    doc.text("FECHA:", MARGIN_X, y.value);
+    doc.setFont(undefined, "normal");
+    doc.text(fecha || "-", MARGIN_X + 25, y.value);
 
-            let y = 35;
-            doc.setFontSize(11);
+    doc.setFont(undefined, "bold");
+    doc.text("PROVINCIA:", PAGE_W - MARGIN_X - 60, y.value);
+    doc.setFont(undefined, "normal");
+    doc.text(provincia || "-", PAGE_W - MARGIN_X - 25, y.value);
+    y.value += 10;
 
-            // Fecha y Provincia
-            doc.setFont(undefined, 'bold');
-            doc.text('FECHA:', 20, y);
-            doc.setFont(undefined, 'normal');
-            doc.text(fecha, 45, y);
-            doc.setFont(undefined, 'bold');
-            doc.text('PROVINCIA:', 120, y);
-            doc.setFont(undefined, 'normal');
-            doc.text(provincia, 155, y);
+    // Convenio (nombre y número)
+    writeBlock(doc, "CONVENIO:", nombreConvenio, PAGE_W - MARGIN_X * 2 - 30, y);
+    writeLabelValue(doc, "N° CONVENIO:", numeroConvenio, y);
 
-            y += 10;
-            doc.setFont(undefined, 'bold');
-            doc.text('CONVENIO:', 20, y);
-            doc.setFont(undefined, 'normal');
-            const nombreLineas = doc.splitTextToSize(nombreConvenio, 150);
-            doc.text(nombreLineas, 50, y);
-            y += nombreLineas.length * 5 + 5;
+    // Cuerpo
+    y.value += 5;
+    writeBlock(doc, "CUERPO DE LA NOTA:", cuerpoNota, PAGE_W - MARGIN_X * 2, y);
 
-            doc.setFont(undefined, 'bold');
-            doc.text('N° CONVENIO:', 20, y);
-            doc.setFont(undefined, 'normal');
-            doc.text(numeroConvenio, 55, y);
+    // Firmantes
+    y.value += 3;
+    doc.setFont(undefined, "bold");
+    doc.text("FIRMANTES:", MARGIN_X, y.value);
+    y.value += 7;
+    doc.setFont(undefined, "normal");
 
-            // Cuerpo de la nota
-            y += 15;
-            doc.setFont(undefined, 'bold');
-            doc.text('CUERPO DE LA NOTA:', 20, y);
-            y += 7;
-            doc.setFont(undefined, 'normal');
-            const cuerpoLineas = doc.splitTextToSize(cuerpoNota, 170);
-            doc.text(cuerpoLineas, 20, y);
-            y += cuerpoLineas.length * 5 + 10;
+    writeLabelValue(doc, "Auxiliar:", auxiliar, y);
+    writeLabelValue(doc, "Referente:", referente, y);
+    if ((subgerente || "").trim() !== "") {
+      writeLabelValue(doc, "Subgerente:", subgerente, y);
+    }
+    writeLabelValue(doc, "Firmante del Convenio:", firmante, y);
 
-            // Firmantes
-            doc.setFont(undefined, 'bold');
-            doc.text('FIRMANTES:', 20, y);
-            y += 7;
-            doc.setFont(undefined, 'normal');
-            doc.text(`Auxiliar: ${auxiliar}`, 20, y);
-            y += 6;
-            doc.text(`Referente: ${referente}`, 20, y);
-            y += 6;
-            if (subgerente) {
-                doc.text(`Subgerente: ${subgerente}`, 20, y);
-                y += 6;
-            }
-            doc.text(`Firmante del Convenio: ${firmante}`, 20, y);
+    // CLONA
+    y.value += 5;
+    writeLabelValue(doc, "CLONA:", clona, y);
+    if (clona === "SI" && (conveniosClona || "").trim() !== "") {
+      writeBlock(doc, "Convenios Relacionados:", conveniosClona, PAGE_W - MARGIN_X * 2, y);
+    }
 
-            // CLONA
-            y += 12;
-            doc.setFont(undefined, 'bold');
-            doc.text(`CLONA: ${clona}`, 20, y);
-            if (clona === 'SI' && conveniosClona) {
-                y += 7;
-                doc.setFont(undefined, 'normal');
-                const clonaLineas = doc.splitTextToSize(`Convenios: ${conveniosClona}`, 170);
-                doc.text(clonaLineas, 20, y);
-                y += clonaLineas.length * 5;
-            }
+    // TA
+    y.value += 3;
+    writeLabelValue(doc, "TA (Tasa Acumulada):", numerosTA, y);
 
-            // TA
-            y += 10;
-            doc.setFont(undefined, 'bold');
-            doc.text('TA (Tasa Acumulada):', 20, y);
-            doc.setFont(undefined, 'normal');
-            doc.text(numerosTA, 70, y);
+    pdfDoc = doc;
 
-            pdfDoc = doc;
-            document.getElementById('preview').style.display = 'block';
-            document.getElementById('preview').scrollIntoView({ behavior: 'smooth' });
-        }
+    // Mostrar UI de descarga
+    document.getElementById('preview').style.display = 'block';
+    document.getElementById('preview').scrollIntoView({ behavior: 'smooth' });
+  }
 
-        function descargarPDF() {
-            if (pdfDoc) {
-                const numeroConvenio = document.getElementById('numeroConvenio').value.replace(/[^a-zA-Z0-9]/g, '_');
-                pdfDoc.save(`NotaSignatura_${numeroConvenio}.pdf`);
-            }
-        }
-    </script>
-</body>
-</html>
+  function descargarPDF() {
+    if (pdfDoc) {
+      const numeroConvenio = (document.getElementById('numeroConvenio').value || "").replace(/[^a-zA-Z0-9]/g, "_");
+      pdfDoc.save(`NotaSignatura_${numeroConvenio || "sin_numero"}.pdf`);
+    }
+  }
+
+  // Exponemos las funciones a los botones
+  window.generarPDF = generarPDF;
+  window.descargarPDF = descargarPDF;
+</script>
