@@ -6,78 +6,148 @@
     <title>Generador de Nota de Signatura</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #2c3e50; margin-bottom: 30px; text-align: center; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 5px; color: #555; font-weight: bold; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
-        button { width: 100%; padding: 15px; background: #3498db; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 20px; }
-        button:hover { background: #2980b9; }
-        .preview { margin-top: 30px; padding: 20px; border: 2px solid #3498db; border-radius: 5px; background: #f8f9fa; }
-        .preview h2 { color: #2c3e50; margin-bottom: 15px; }
-        #pdfCanvas { border: 1px solid #ddd; max-width: 100%; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
+        }
+        h1 { 
+            color: #2c3e50; 
+            margin-bottom: 10px; 
+            text-align: center;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            color: #2c3e50; 
+            font-weight: 600;
+            font-size: 14px;
+        }
+        input, select { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid #e0e0e0; 
+            border-radius: 8px; 
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn { 
+            width: 100%; 
+            padding: 15px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 600;
+            cursor: pointer; 
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+        .btn:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-download {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .preview { 
+            margin-top: 30px; 
+            padding: 20px; 
+            border: 2px solid #667eea; 
+            border-radius: 10px; 
+            background: #f8f9fa; 
+        }
+        .preview h2 { 
+            color: #2c3e50; 
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📋 Generador de Nota de Signatura</h1>
+        <p class="subtitle">Complete los campos para generar su documento</p>
         
         <div class="form-group">
-            <label>Dirección</label>
+            <label>📍 Dirección</label>
             <input type="text" id="direccion" placeholder="Ej: Dirección de Asuntos Jurídicos">
         </div>
 
         <div class="form-group">
-            <label>Número de Expediente</label>
+            <label>📁 Número de Expediente</label>
             <input type="text" id="expediente" placeholder="Ej: 2025-001">
         </div>
 
         <div class="form-group">
-            <label>Número de Dictamen</label>
+            <label>📄 Número de Dictamen</label>
             <input type="text" id="dictamen" placeholder="Ej: 045/2025">
         </div>
 
         <div class="form-group">
-            <label>Fecha de Dictamen</label>
+            <label>📅 Fecha de Dictamen</label>
             <input type="date" id="fechaDictamen">
         </div>
 
         <div class="form-group">
-            <label>Ámbito</label>
+            <label>🌍 Ámbito</label>
             <select id="ambito">
-                <option value="nacional">Nacional</option>
-                <option value="provincial">Provincial</option>
-                <option value="municipal">Municipal</option>
+                <option value="Nacional">Nacional</option>
+                <option value="Provincial">Provincial</option>
+                <option value="Municipal">Municipal</option>
             </select>
         </div>
 
         <div class="form-group">
-            <label>Sindicato/Cámara Empresaria</label>
+            <label>👥 Sindicato/Cámara Empresaria</label>
             <input type="text" id="sindicato" placeholder="Nombre del sindicato o cámara">
         </div>
 
         <div class="form-group">
-            <label>Empresa/Entidad</label>
+            <label>🏢 Empresa/Entidad</label>
             <input type="text" id="empresa" placeholder="Nombre de la empresa o entidad">
         </div>
 
         <div class="form-group">
-            <label>Número de Convenio</label>
+            <label>🔢 Número de Convenio</label>
             <input type="text" id="numeroConvenio" placeholder="Ej: 1234/2025">
         </div>
 
         <div class="form-group">
-            <label>Fecha de Celebración</label>
+            <label>📅 Fecha de Celebración</label>
             <input type="date" id="fechaCelebracion">
         </div>
 
-        <button onclick="generarPDF()">🔄 Generar Nota de Signatura</button>
+        <button class="btn" onclick="generarPDF()">🔄 Generar Nota de Signatura</button>
 
         <div class="preview" id="preview" style="display:none;">
-            <h2>Vista Previa:</h2>
-            <canvas id="pdfCanvas"></canvas>
-            <button onclick="descargarPDF()">📥 Descargar PDF</button>
+            <h2>✅ Documento Generado</h2>
+            <p style="color: #27ae60; margin-bottom: 15px;">Su nota de signatura está lista para descargar</p>
+            <button class="btn btn-download" onclick="descargarPDF()">📥 Descargar PDF</button>
         </div>
     </div>
 
@@ -100,12 +170,13 @@
             const numeroConvenio = document.getElementById('numeroConvenio').value;
             const fechaCelebracion = document.getElementById('fechaCelebracion').value;
 
-            let y = 40;
-            doc.setFontSize(16);
+            // Título
+            doc.setFontSize(18);
             doc.setFont(undefined, 'bold');
-            doc.text('NOTA DE SIGNATURA', 105, y, { align: 'center' });
+            doc.text('NOTA DE SIGNATURA', 105, 30, { align: 'center' });
 
-            y += 20;
+            // Contenido
+            let y = 50;
             doc.setFontSize(12);
             doc.setFont(undefined, 'normal');
             
@@ -117,7 +188,9 @@
             y += 10;
             doc.text(`Fecha de Dictamen: ${fechaDictamen}`, 20, y);
             y += 15;
+            doc.setFont(undefined, 'bold');
             doc.text(`Ámbito: ${ambito.toUpperCase()}`, 20, y);
+            doc.setFont(undefined, 'normal');
             y += 10;
             doc.text(`Sindicato/Cámara: ${sindicato}`, 20, y);
             y += 10;
@@ -128,24 +201,14 @@
             doc.text(`Fecha de Celebración: ${fechaCelebracion}`, 20, y);
 
             pdfDoc = doc;
-
-            const canvas = document.getElementById('pdfCanvas');
-            const imgData = doc.output('dataurlstring');
-            const img = new Image();
-            img.src = imgData;
-            img.onload = function() {
-                canvas.width = 595;
-                canvas.height = 842;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, 595, 842);
-            };
-
             document.getElementById('preview').style.display = 'block';
+            document.getElementById('preview').scrollIntoView({ behavior: 'smooth' });
         }
 
         function descargarPDF() {
             if (pdfDoc) {
-                pdfDoc.save('nota-signatura.pdf');
+                const fecha = new Date().toISOString().split('T')[0];
+                pdfDoc.save(`nota-signatura-${fecha}.pdf`);
             }
         }
     </script>
