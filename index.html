@@ -49,98 +49,109 @@
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const margin = 20;
                 const maxWidth = pageWidth - (margin * 2);
-                let yPos = 20;
+                let yPos = 30; // Empezar más abajo para dar espacio al encabezado
 
-                // Función para agregar texto con saltos de línea automáticos
-                const addText = (text, fontSize = 11, isBold = false, align = 'left') => {
+                // Función para agregar texto
+                const addText = (text, x, y, fontSize = 11, isBold = false) => {
                     doc.setFontSize(fontSize);
                     doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-                    
-                    const lines = doc.splitTextToSize(text, maxWidth);
-                    
-                    lines.forEach(line => {
-                        if (yPos > 270) {
-                            doc.addPage();
-                            yPos = 20;
-                        }
-                        
-                        let xPos = margin;
-                        if (align === 'right') {
-                            xPos = pageWidth - margin - doc.getTextWidth(line);
-                        } else if (align === 'center') {
-                            xPos = (pageWidth - doc.getTextWidth(line)) / 2;
-                        }
-                        
-                        doc.text(line, xPos, yPos);
-                        yPos += fontSize * 0.5;
-                    });
+                    doc.text(text, x, y);
                 };
 
-                // Encabezado con fecha
-                addText(`Santa Fe, ${formData.fecha}`, 11);
-                yPos += 10;
+                // Función para agregar texto con wrap
+                const addTextWrapped = (text, x, y, fontSize = 11, isBold = false, maxWidth = 170) => {
+                    doc.setFontSize(fontSize);
+                    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+                    const lines = doc.splitTextToSize(text, maxWidth);
+                    doc.text(lines, x, y);
+                    return lines.length * (fontSize * 0.5); // Retorna la altura usada
+                };
 
-                // Información del convenio
-                addText(formData.nombreConvenio, 11, true);
+                // ENCABEZADO: Santa Fe, fecha (alineado a la izquierda)
+                addText(`Santa Fe, ${formData.fecha}`, margin, yPos, 11);
+                yPos += 15; // Espacio después de fecha
+
+                // Línea en blanco
+                yPos += 7;
+
+                // Nombre del convenio (en negrita)
+                addText(formData.nombreConvenio, margin, yPos, 11, true);
                 yPos += 5;
-                addText(`Número de Convenio: ${formData.numeroConvenio} – ${formData.provincia}`, 11);
+
+                // Número de Convenio
+                addText(`Numero de Convenio: ${formData.numeroConvenio} – ${formData.provincia}`, margin, yPos, 11);
                 yPos += 5;
+
+                // Email del firmante (si existe)
                 if (formData.emailFirmante) {
-                    addText(formData.emailFirmante, 11);
+                    addText(formData.emailFirmante, margin, yPos, 11);
                     yPos += 5;
                 }
+
+                // Espacio antes del cuerpo
+                yPos += 7;
+
+                // CUERPO DE LA NOTA
+                const alturaUsada = addTextWrapped(formData.cuerpoNota, margin, yPos, 11, false, maxWidth);
+                yPos += alturaUsada + 10;
+
+                // Espacio antes de firmantes
                 yPos += 5;
 
-                // Cuerpo de la nota
-                addText(formData.cuerpoNota, 11);
+                // POR JERÁRQUICOS SALUD (en negrita)
+                addText('Por Jerárquicos Salud:', margin, yPos, 11, true);
+                yPos += 6;
+
+                // Auxiliar
+                addText(formData.nombreAuxiliar, margin, yPos, 11);
+                yPos += 5;
+                addText('Auxiliar', margin, yPos, 11);
+                yPos += 5;
+                addText('Dpto. Convenios', margin, yPos, 11);
+                yPos += 10; // Espacio entre firmantes
+
+                // Referente
+                addText(formData.nombreReferente, margin, yPos, 11);
+                yPos += 5;
+                addText('Referente Dpto. Convenios', margin, yPos, 11);
                 yPos += 10;
 
-                // Firmantes por Jerárquicos Salud
-                addText('Por Jerárquicos Salud:', 11, true);
-                yPos += 5;
-                addText(formData.nombreAuxiliar, 11);
-                yPos += 3;
-                addText('Auxiliar', 10);
-                addText('Dpto. Convenios', 10);
-                yPos += 8;
-
-                addText(formData.nombreReferente, 11);
-                yPos += 3;
-                addText('Referente Dpto. Convenios', 10);
-                yPos += 8;
-
-                // Subgerente (opcional)
+                // Subgerente (si corresponde)
                 if (formData.usaSubgerente && formData.nombreSubgerente) {
-                    addText(formData.nombreSubgerente, 11);
-                    yPos += 3;
-                    addText('Subgerente', 10);
-                    yPos += 8;
+                    addText(formData.nombreSubgerente, margin, yPos, 11);
+                    yPos += 5;
+                    addText('Subgerente', margin, yPos, 11);
+                    yPos += 10;
                 }
 
+                // POR EL CONVENIO (en negrita)
+                addText('Por el convenio:', margin, yPos, 11, true);
+                yPos += 6;
+
                 // Firmante del convenio
-                addText('Por el convenio:', 11, true);
+                addText(formData.nombreFirmante, margin, yPos, 11);
                 yPos += 5;
-                addText(formData.nombreFirmante, 11);
-                yPos += 3;
-                addText(formData.cargoFirmante || 'Administrador', 10);
+                addText(formData.cargoFirmante || 'Administrador', margin, yPos, 11);
                 yPos += 10;
+
+                // Espacio antes de CLONA y TA
+                yPos += 5;
 
                 // CLONA
                 if (formData.clona === 'si') {
-                    addText(`CLONA: Sí - ${formData.conveniosClonados}`, 11);
-                    yPos += 5;
+                    addText(`CLONA: ${formData.conveniosClonados}`, margin, yPos, 11);
                 } else {
-                    addText('CLONA: No', 11);
-                    yPos += 5;
+                    addText('CLONA: No', margin, yPos, 11);
                 }
+                yPos += 7;
 
-                // Tasa Acumulada
+                // TA (Tasa Acumulada)
                 if (formData.tasaAcumulada) {
-                    addText(`TA: ${formData.tasaAcumulada}`, 11);
+                    addText(`TA: ${formData.tasaAcumulada}`, margin, yPos, 11);
                 }
 
                 // Guardar el PDF
-                const nombreArchivo = `Nota_${formData.numeroConvenio}_${formData.fecha.replace(/\//g, '-')}.pdf`;
+                const nombreArchivo = `Nota_${formData.numeroConvenio}_${formData.fecha.replace(/\s+/g, '_').replace(/\//g, '-')}.pdf`;
                 doc.save(nombreArchivo);
             };
 
