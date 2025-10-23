@@ -52,7 +52,7 @@
             font-family: inherit;
         }
         textarea {
-            min-height: 100px;
+            min-height: 80px;
             resize: vertical;
         }
         input:focus, select:focus, textarea:focus {
@@ -91,66 +91,88 @@
             margin-bottom: 15px;
             font-size: 20px;
         }
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .row {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📋 Generador de Nota de Signatura</h1>
-        <p class="subtitle">Complete los campos para generar el documento</p>
+        <p class="subtitle">Sistema de generación de notas para convenios colectivos</p>
         
-        <div class="form-group">
-            <label>Ministerio/Secretaría</label>
-            <input type="text" id="ministerio" placeholder="Ej: Ministerio de Trabajo, Empleo y Seguridad Social">
-        </div>
-
-        <div class="form-group">
-            <label>Subsecretaría</label>
-            <input type="text" id="subsecretaria" placeholder="Ej: Subsecretaría de Relaciones Laborales">
-        </div>
-
-        <div class="form-group">
-            <label>Dirección</label>
-            <input type="text" id="direccion" placeholder="Ej: Dirección Nacional de Relaciones del Trabajo">
-        </div>
-
         <div class="form-group">
             <label>Número de Expediente</label>
             <input type="text" id="expediente" placeholder="Ej: EX-2025-12345678-APN-DGD#MT">
         </div>
 
         <div class="form-group">
-            <label>Partes Signatarias</label>
-            <textarea id="partes" placeholder="Ej: UNION OBRERA METALURGICA DE LA REPUBLICA ARGENTINA y ASOCIACION DE INDUSTRIALES METALURGICOS DE LA REPUBLICA ARGENTINA"></textarea>
+            <label>Número de Dictamen</label>
+            <input type="text" id="dictamen" placeholder="Ej: DICT-2025-123-APN-DNRT#MT">
         </div>
 
         <div class="form-group">
-            <label>Fecha de Suscripción del Acuerdo</label>
-            <input type="date" id="fechaSuscripcion">
+            <label>Fecha de Dictamen</label>
+            <input type="date" id="fechaDictamen">
         </div>
 
         <div class="form-group">
-            <label>Número de CCT (si aplica)</label>
-            <input type="text" id="cct" placeholder="Ej: CCT 260/75">
+            <label>Partes Firmantes</label>
+            <textarea id="partes" placeholder="Sindicato y Empresa/Cámara empresaria que firman el convenio"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Tipo de Instrumento</label>
+            <select id="tipoInstrumento">
+                <option value="Convenio Colectivo de Trabajo">Convenio Colectivo de Trabajo</option>
+                <option value="Acuerdo">Acuerdo</option>
+                <option value="Laudo">Laudo</option>
+                <option value="Acta Acuerdo">Acta Acuerdo</option>
+            </select>
+        </div>
+
+        <div class="row">
+            <div class="form-group">
+                <label>Ámbito</label>
+                <select id="ambito">
+                    <option value="Nacional">Nacional</option>
+                    <option value="Provincial">Provincial</option>
+                    <option value="Municipal">Municipal</option>
+                    <option value="Empresa">Empresa</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Fecha de Celebración</label>
+                <input type="date" id="fechaCelebracion">
+            </div>
         </div>
 
         <div class="form-group">
             <label>Actividad</label>
-            <input type="text" id="actividad" placeholder="Ej: Industria Metalúrgica">
+            <input type="text" id="actividad" placeholder="Ej: Industria Metalúrgica, Comercio, Construcción, etc.">
         </div>
 
         <div class="form-group">
-            <label>Ámbito de Aplicación</label>
-            <select id="ambito">
-                <option value="Nacional">Nacional</option>
-                <option value="Provincial">Provincial</option>
-                <option value="Municipal">Municipal</option>
-                <option value="Empresarial">Empresarial</option>
-            </select>
+            <label>Número de CCT (si modifica o complementa otro)</label>
+            <input type="text" id="cct" placeholder="Ej: CCT 260/75">
         </div>
 
         <div class="form-group">
-            <label>Observaciones (opcional)</label>
-            <textarea id="observaciones" placeholder="Cualquier información adicional relevante"></textarea>
+            <label>Vigencia</label>
+            <input type="text" id="vigencia" placeholder="Ej: 01/01/2025 al 31/12/2026">
+        </div>
+
+        <div class="form-group">
+            <label>Observaciones</label>
+            <textarea id="observaciones" placeholder="Información adicional relevante (opcional)"></textarea>
         </div>
 
         <button class="btn" onclick="generarPDF()">🔄 Generar Nota de Signatura</button>
@@ -171,88 +193,100 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            const ministerio = document.getElementById('ministerio').value;
-            const subsecretaria = document.getElementById('subsecretaria').value;
-            const direccion = document.getElementById('direccion').value;
             const expediente = document.getElementById('expediente').value;
+            const dictamen = document.getElementById('dictamen').value;
+            const fechaDictamen = document.getElementById('fechaDictamen').value;
             const partes = document.getElementById('partes').value;
-            const fechaSuscripcion = document.getElementById('fechaSuscripcion').value;
-            const cct = document.getElementById('cct').value;
-            const actividad = document.getElementById('actividad').value;
+            const tipoInstrumento = document.getElementById('tipoInstrumento').value;
             const ambito = document.getElementById('ambito').value;
+            const fechaCelebracion = document.getElementById('fechaCelebracion').value;
+            const actividad = document.getElementById('actividad').value;
+            const cct = document.getElementById('cct').value;
+            const vigencia = document.getElementById('vigencia').value;
             const observaciones = document.getElementById('observaciones').value;
 
-            // Título
+            // Encabezado
             doc.setFontSize(16);
             doc.setFont(undefined, 'bold');
             doc.text('NOTA DE SIGNATURA', 105, 20, { align: 'center' });
+            doc.text('CONVENIO COLECTIVO DE TRABAJO', 105, 28, { align: 'center' });
 
-            // Línea separadora
+            // Línea decorativa
             doc.setDrawColor(102, 126, 234);
             doc.setLineWidth(0.5);
-            doc.line(20, 25, 190, 25);
+            doc.line(20, 32, 190, 32);
 
             // Contenido
-            let y = 35;
+            let y = 42;
             doc.setFontSize(11);
+            
             doc.setFont(undefined, 'bold');
-            
-            doc.text('ORGANISMO:', 20, y);
+            doc.text('EXPEDIENTE N°:', 20, y);
             doc.setFont(undefined, 'normal');
-            doc.text(ministerio, 50, y);
+            doc.text(expediente, 60, y);
             
-            y += 7;
-            doc.text(subsecretaria, 20, y);
+            y += 8;
+            doc.setFont(undefined, 'bold');
+            doc.text('DICTAMEN N°:', 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(dictamen, 60, y);
             
-            y += 7;
-            doc.text(direccion, 20, y);
+            y += 8;
+            doc.setFont(undefined, 'bold');
+            doc.text('FECHA DICTAMEN:', 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(fechaDictamen, 60, y);
             
             y += 12;
             doc.setFont(undefined, 'bold');
-            doc.text('EXPEDIENTE:', 20, y);
-            doc.setFont(undefined, 'normal');
-            doc.text(expediente, 50, y);
-            
-            y += 12;
-            doc.setFont(undefined, 'bold');
-            doc.text('PARTES SIGNATARIAS:', 20, y);
-            y += 7;
+            doc.text('PARTES FIRMANTES:', 20, y);
+            y += 6;
             doc.setFont(undefined, 'normal');
             const partesLineas = doc.splitTextToSize(partes, 170);
             doc.text(partesLineas, 20, y);
-            y += partesLineas.length * 7;
+            y += partesLineas.length * 5 + 6;
             
-            y += 5;
             doc.setFont(undefined, 'bold');
-            doc.text('FECHA DE SUSCRIPCIÓN:', 20, y);
+            doc.text('TIPO DE INSTRUMENTO:', 20, y);
             doc.setFont(undefined, 'normal');
-            doc.text(fechaSuscripcion, 80, y);
+            doc.text(tipoInstrumento, 75, y);
             
-            if (cct) {
-                y += 10;
-                doc.setFont(undefined, 'bold');
-                doc.text('CCT:', 20, y);
-                doc.setFont(undefined, 'normal');
-                doc.text(cct, 35, y);
-            }
+            y += 8;
+            doc.setFont(undefined, 'bold');
+            doc.text('ÁMBITO:', 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(ambito, 40, y);
             
-            y += 10;
+            doc.setFont(undefined, 'bold');
+            doc.text('FECHA CELEBRACIÓN:', 110, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(fechaCelebracion, 160, y);
+            
+            y += 8;
             doc.setFont(undefined, 'bold');
             doc.text('ACTIVIDAD:', 20, y);
             doc.setFont(undefined, 'normal');
             doc.text(actividad, 50, y);
             
-            y += 10;
+            if (cct) {
+                y += 8;
+                doc.setFont(undefined, 'bold');
+                doc.text('CCT RELACIONADA:', 20, y);
+                doc.setFont(undefined, 'normal');
+                doc.text(cct, 65, y);
+            }
+            
+            y += 8;
             doc.setFont(undefined, 'bold');
-            doc.text('ÁMBITO:', 20, y);
+            doc.text('VIGENCIA:', 20, y);
             doc.setFont(undefined, 'normal');
-            doc.text(ambito, 43, y);
+            doc.text(vigencia, 45, y);
             
             if (observaciones) {
                 y += 12;
                 doc.setFont(undefined, 'bold');
                 doc.text('OBSERVACIONES:', 20, y);
-                y += 7;
+                y += 6;
                 doc.setFont(undefined, 'normal');
                 const obsLineas = doc.splitTextToSize(observaciones, 170);
                 doc.text(obsLineas, 20, y);
@@ -265,8 +299,8 @@
 
         function descargarPDF() {
             if (pdfDoc) {
-                const fecha = new Date().toISOString().split('T')[0];
-                pdfDoc.save(`nota-signatura-${fecha}.pdf`);
+                const expediente = document.getElementById('expediente').value.replace(/[^a-zA-Z0-9]/g, '_');
+                pdfDoc.save(`NotaSignatura_${expediente}.pdf`);
             }
         }
     </script>
