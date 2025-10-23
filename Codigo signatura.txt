@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Nota de Signatura</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+        const { jsPDF } = window.jspdf;
+
+        function FormularioNota() {
+            const [formData, setFormData] = useState({
+                fecha: '',
+                nombreConvenio: '',
+                numeroConvenio: '',
+                provincia: '',
+                emailFirmante: '',
+                cuerpoNota: '',
+                nombreAuxiliar: '',
+                nombreReferente: '',
+                nombreSubgerente: '',
+                usaSubgerente: false,
+                nombreFirmante: '',
+                cargoFirmante: '',
+                clona: 'no',
+                conveniosClonados: '',
+                tasaAcumulada: ''
+            });
+
+            const handleChange = (e) => {
+                const { name, value, type, checked } = e.target;
+                setFormData(prev => ({
+                    ...prev,
+                    [name]: type === 'checkbox' ? checked : value
+                }));
+            };
+
+            const generarPDF = () => {
+                const doc = new jsPDF();
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const margin = 20;
+                const maxWidth = pageWidth - (margin * 2);
+                let yPos = 20;
+
+                // Función para agregar texto con saltos de línea automáticos
+                const addText = (text, fontSize = 11, isBold = false, align = 'left') => {
+                    doc.setFontSize(fontSize);
+                    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+                    
+                    const lines = doc.splitTextToSize(text, maxWidth);
+                    
+                    lines.forEach(line => {
+                        if (yPos > 270) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        
+                        let xPos = margin;
+                        if (align === 'right') {
+                            xPos = pageWidth - margin - doc.getTextWidth(line);
+                        } else if (align === 'center') {
+                            xPos = (pageWidth - doc.getTextWidth(line)) / 2;
+                        }
+                        
+                        doc.text(line, xPos, yPos);
+                        yPos += fontSize * 0.5;
+                    });
+                };
+
+                // Encabezado con fecha
+                addText(`Santa Fe, ${formData.fecha}`, 11);
+                yPos += 10;
+
+                // Información del convenio
+                addText(formData.nombreConvenio, 11, true);
+                yPos += 5;
+                addText(`Número de Convenio: ${formData.numeroConvenio} – ${formData.provincia}`, 11);
+                yPos += 5;
+                if (formData.emailFirmante) {
+                    addText(formData.emailFirmante, 11);
+                    yPos += 5;
+                }
+                yPos += 5;
+
+                // Cuerpo de la nota
+                addText(formData.cuerpoNota, 11);
+                yPos += 10;
+
+                // Firmantes por Jerárquicos Salud
+                addText('Por Jerárquicos Salud:', 11, true);
+                yPos += 5;
+                addText(formData.nombreAuxiliar, 11);
+                yPos += 3;
+                addText('Auxiliar', 10);
+                addText('Dpto. Convenios', 10);
+                yPos += 8;
+
+                addText(formData.nombreReferente, 11);
+                yPos += 3;
+                addText('Referente Dpto. Convenios', 10);
+                yPos += 8;
+
+                // Subgerente (opcional)
+                if (formData.usaSubgerente && formData.nombreSubgerente) {
+                    addText(formData.nombreSubgerente, 11);
+                    yPos += 3;
+                    addText('Subgerente', 10);
+                    yPos += 8;
+                }
+
+                // Firmante del convenio
+                addText('Por el convenio:', 11, true);
+                yPos += 5;
+                addText(formData.nombreFirmante, 11);
+                yPos += 3;
+                addText(formData.cargoFirmante || 'Administrador', 10);
+                yPos += 10;
+
+                // CLONA
+                if (formData.clona === 'si') {
+                    addText(`CLONA: Sí - ${formData.conveniosClonados}`, 11);
+                    yPos += 5;
+                } else {
+                    addText('CLONA: No', 11);
+                    yPos += 5;
+                }
+
+                // Tasa Acumulada
+                if (formData.tasaAcumulada) {
+                    addText(`TA: ${formData.tasaAcumulada}`, 11);
+                }
+
+                // Guardar el PDF
+                const nombreArchivo = `Nota_${formData.numeroConvenio}_${formData.fecha.replace(/\//g, '-')}.pdf`;
+                doc.save(nombreArchivo);
+            };
+
+            return (
+                <div className="min-h-screen py-8 px-4">
+                    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-6">Generador de Nota de Signatura</h1>
+                        
+                        <div className="space-y-6">
+                            {/* Información básica */}
+                            <div className="border-b pb-4">
+                                <h2 className="text-xl font-semibold text-gray-700 mb-4">Información Básica</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Fecha <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="fecha"
+                                            value={formData.fecha}
+                                            onChange={handleChange}
+                                            placeholder="ej: 23 de octubre de 2025"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Provincia <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="provincia"
+                                            value={formData.provincia}
+                                            onChange={handleChange}
+                                            placeholder="ej: Santa Fe"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Información del convenio */}
+                            <div className="border-b pb-4">
+                                <h2 className="text-xl font-semibold text-gray-700 mb-4">Datos del Convenio</h2>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Nombre del Convenio <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="nombreConvenio"
+                                            value={formData.nombreConvenio}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Número de Convenio <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="numeroConvenio"
+                                            value={formData.numeroConvenio}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Correo Electrónico del Firmante
+                                        </label>
+                                        <input
+                                            type="email"
+                                            name="emailFirmante"
+                                            value={formData.emailFirmante}
+                                            onChange={handleChange}
+                                            placeholder="opcional"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Cuerpo de la nota */}
+                            <div className="border-b pb-4">
+                                <h2 className="text-xl font-semibold text-gray-700 mb-4">Contenido</h2>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Cuerpo de la Nota <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        name="cuerpoNota"
+                                        value={formData.cuerpoNota}
+                                        onChange={handleChange}
+                                        rows="6"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="Escriba el contenido de la nota..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Firmantes */}
+                            <div className="border-b pb-4">
+                                <h2 className="text-xl font-semibold text-gray-700 mb-4">Firmantes - Jerárquicos Salud</h2>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Nombre del Auxiliar <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="nombreAuxiliar"
+                                            value={formData.nombreAuxiliar}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Nombre del Referente <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="nombreReferente"
+                                            value={formData.nombreReferente}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center mb-2">
+                                        <input
+                                            type="checkbox"
+                                            name="usaSubgerente"
+                                            checked={formData.usaSubgerente}
+                                            onChange={handleChange}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <label className="ml-2 block text-sm text-gray-700">
+                                            ¿Incluir Subgerente?
+                                        </label>
+                                    </div>
+
+                                    {formData.usaSubgerente && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Nombre del Subgerente
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="nombreSubgerente"
+                                                value={formData.nombreSubgerente}
+                                                onChange={handleChange}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Firmante del convenio */}
+                            <div className="border-b pb-4">
+                                <h2 className="text-xl font-semibold text-gray-700 mb-4">Firmante del Convenio</h2>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Nombre del Firmante <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="nombreFirmante"
+                                            value={formData.nombreFirmante}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Cargo del Firmante
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="cargoFirmante"
+                                            value={formData.cargoFirmante}
+                                            onChange={handleChange}
+                                            placeholder="Administrador (por defecto)"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* CLONA y TA */}
+                            <div className="border-b pb-4">
+                                <h2 className="text-xl font-semibold text-gray-700 mb-4">Información Adicional</h2>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            CLONA (Convenios clonados)
+                                        </label>
+                                        <div className="flex gap-4 mb-3">
+                                            <label className="flex items-center">
+                                                <input
+                                                    type="radio"
+                                                    name="clona"
+                                                    value="no"
+                                                    checked={formData.clona === 'no'}
+                                                    onChange={handleChange}
+                                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="ml-2 text-sm text-gray-700">No</span>
+                                            </label>
+                                            <label className="flex items-center">
+                                                <input
+                                                    type="radio"
+                                                    name="clona"
+                                                    value="si"
+                                                    checked={formData.clona === 'si'}
+                                                    onChange={handleChange}
+                                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="ml-2 text-sm text-gray-700">Sí</span>
+                                            </label>
+                                        </div>
+
+                                        {formData.clona === 'si' && (
+                                            <input
+                                                type="text"
+                                                name="conveniosClonados"
+                                                value={formData.conveniosClonados}
+                                                onChange={handleChange}
+                                                placeholder="Números de convenios clonados"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            TA (Tasa Acumulada)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="tasaAcumulada"
+                                            value={formData.tasaAcumulada}
+                                            onChange={handleChange}
+                                            placeholder="Números de TA"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Botón generar */}
+                            <div className="pt-4">
+                                <button
+                                    onClick={generarPDF}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105"
+                                >
+                                    Generar PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<FormularioNota />, document.getElementById('root'));
+    </script>
+</body>
+</html>
