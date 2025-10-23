@@ -8,8 +8,7 @@
     *{box-sizing:border-box}
     body{
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background:#f2f4f8;
-      margin:0; padding:24px;
+      background:#f2f4f8; margin:0; padding:24px;
     }
     .container{
       max-width: 920px; margin:0 auto; background:#fff; padding:28px 24px;
@@ -93,9 +92,13 @@
           <label>Nombre del Subgerente (opcional)</label>
           <input type="text" id="subgerente" placeholder="Dejar en blanco si no corresponde">
         </div>
-        <div class="full">
+        <div>
           <label>Nombre del Firmante del Convenio</label>
           <input type="text" id="firmante" placeholder="Nombre completo">
+        </div>
+        <div>
+          <label>Correo electrónico del Firmante</label>
+          <input type="email" id="firmanteEmail" placeholder="ejemplo@dominio.com">
         </div>
       </div>
     </div>
@@ -142,17 +145,20 @@
 
     // jsPDF A4 (mm)
     const PAGE_W = 210, PAGE_H = 297;
-    const HEADER_H = 35, FOOTER_H = 22;
+    // Altos máximos (se respeta proporción de la imagen, sin estirar)
+    const HEADER_MAX_H = 18; // más chico que antes
+    const FOOTER_MAX_H = 16;
+
     const MARGIN_X = 20;
-    const TOP_Y    = HEADER_H + 10;
-    const BOTTOM_Y = PAGE_H - FOOTER_H - 12;
+    let HEADER_H = 14; // se recalcula con la relación de aspecto real
+    let FOOTER_H = 12;
 
     function toggleClona(){
       const v = document.getElementById('clona').value;
       document.getElementById('clonaBox').style.display = (v === 'SI') ? 'block' : 'none';
     }
 
-    // Precarga de imágenes
+    // Precarga de imágenes y cálculo de alto proporcional
     let headerImg=null, footerImg=null;
     function loadImage(src){
       return new Promise((res, rej)=>{
@@ -166,25 +172,42 @@
     (async function preload(){
       try{
         [headerImg, footerImg] = await Promise.all([loadImage(HEADER_URL), loadImage(FOOTER_URL)]);
+        if (headerImg && headerImg.width) {
+          const h = PAGE_W * (headerImg.height / headerImg.width);
+          HEADER_H = Math.min(h, HEADER_MAX_H);
+        }
+        if (footerImg && footerImg.width) {
+          const h = PAGE_W * (footerImg.height / footerImg.width);
+          FOOTER_H = Math.min(h, FOOTER_MAX_H);
+        }
       }catch(e){ console.warn("No se pudieron precargar las imágenes", e); }
     })();
 
     function addHeaderFooter(doc){
-      if(headerImg) doc.addImage(headerImg, "PNG", 0, 0, PAGE_W, HEADER_H);
-      if(footerImg) doc.addImage(footerImg, "PNG", 0, PAGE_H - FOOTER_H, PAGE_W, FOOTER_H);
-    }
-
-    function ensureSpace(doc, needed, yRef){
-      if(yRef.value + needed > BOTTOM_Y){
-        doc.addPage(); addHeaderFooter(doc); yRef.value = TOP_Y;
+      if(headerImg){
+        const h = HEADER_H;
+        doc.addImage(headerImg, "PNG", 0, 0, PAGE_W, h);
+      }
+      if(footerImg){
+        const h = FOOTER_H;
+        doc.addImage(footerImg, "PNG", 0, PAGE_H - h, PAGE_W, h);
       }
     }
 
-    function textBlock(doc, value, width, yRef){
+    function topY(){ return HEADER_H + 10; }
+    function bottomY(){ return PAGE_H - FOOTER_H - 12; }
+
+    function ensureSpace(doc, needed, yRef){
+      if(yRef.value + needed > bottomY()){
+        doc.addPage(); addHeaderFooter(doc); yRef.value = topY();
+      }
+    }
+
+    function textBlock(doc, value, width, yRef, lineH=5){
       const val = (value || "").toString().trim();
       if(!val) return;
       const lines = doc.splitTextToSize(val, width);
-      const h = lines.length * 5 + 1;
+      const h = lines.length * lineH + 1;
       ensureSpace(doc, h, yRef);
       doc.text(lines, MARGIN_X, yRef.value);
       yRef.value += h + 3;
@@ -202,45 +225,63 @@
       const provincia      = document.getElementById('provincia').value;
       const nombreConvenio = document.getElementById('nombreConvenio').value;
       const numeroConvenio = document.getElementById('numeroConvenio').value;
+
       const cuerpoNota     = document.getElementById('cuerpoNota').value;
 
       const auxiliar       = document.getElementById('auxiliar').value;
       const referente      = document.getElementById('referente').value;
       const subgerente     = document.getElementById('subgerente').value;
       const firmante       = document.getElementById('firmante').value;
+      const firmanteEmail  = document.getElementById('firmanteEmail').value;
 
       const clona          = document.getElementById('clona').value;
       const conveniosClona = document.getElementById('conveniosClona').value;
-
       const numerosTA      = document.getElementById('numerosTA').value;
 
-      let y = { value: TOP_Y };
-      doc.setFontSize(11);
+      let y = { value: topY() };
+      const CONTENT_W = PAGE_W - MARGIN_X*2;
+
+      // ===== Sección 1: Encabezado de datos (solo valores) =====
+      doc.setFontSize(12);
       doc.setFont(undefined, "normal");
+      textBlock(doc, fecha,          CONTENT_W, y);
+      textBlock(doc, provincia,      CONTENT_W, y);
+      textBlock(doc, nombreConvenio, CONTENT_W, y);
+      textBlock(doc, numeroConvenio, CONTENT_W, y);
 
-      // 👉 IMPORTANTE: solo valores, sin etiquetas
-      // Orden sugerido: fecha, provincia, nombre, número, cuerpo, firmantes, clona(si), TA
-      textBlock(doc, fecha, PAGE_W - MARGIN_X*2, y);
-      textBlock(doc, provincia, PAGE_W - MARGIN_X*2, y);
-      textBlock(doc, nombreConvenio, PAGE_W - MARGIN_X*2, y);
-      textBlock(doc, numeroConvenio, PAGE_W - MARGIN_X*2, y);
+      // separador visual
+      ensureSpace(doc, 6, y);
+      doc.setDrawColor(200); doc.setLineWidth(0.3);
+      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
+      y.value += 6;
 
-      // Cuerpo
-      textBlock(doc, cuerpoNota, PAGE_W - MARGIN_X*2, y);
+      // ===== Sección 2: Cuerpo de la Nota =====
+      doc.setFontSize(12);
+      textBlock(doc, cuerpoNota, CONTENT_W, y, 5);
 
-      // Firmantes (solo valores presentes, cada uno en su línea)
-      textBlock(doc, auxiliar, PAGE_W - MARGIN_X*2, y);
-      textBlock(doc, referente, PAGE_W - MARGIN_X*2, y);
-      if((subgerente||"").trim()!=="") textBlock(doc, subgerente, PAGE_W - MARGIN_X*2, y);
-      textBlock(doc, firmante, PAGE_W - MARGIN_X*2, y);
+      // separador visual
+      ensureSpace(doc, 6, y);
+      doc.setDrawColor(220); doc.setLineWidth(0.3);
+      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
+      y.value += 6;
 
-      // CLONA (solo si es SI)
-      if(clona === "SI"){
-        textBlock(doc, conveniosClona, PAGE_W - MARGIN_X*2, y);
+      // ===== Sección 3: Firmantes (solo valores presentes) =====
+      doc.setFontSize(12);
+      textBlock(doc, auxiliar,      CONTENT_W, y);
+      textBlock(doc, referente,     CONTENT_W, y);
+      if((subgerente||"").trim()!=="") textBlock(doc, subgerente, CONTENT_W, y);
+      textBlock(doc, firmante,      CONTENT_W, y);
+      if((firmanteEmail||"").trim()!=="") textBlock(doc, firmanteEmail, CONTENT_W, y);
+
+      // ===== Sección 4: CLONA y TA (más chico, al final) =====
+      y.value += 2;
+      doc.setFontSize(10); // tipografía más chica
+      if(clona === "SI" && (conveniosClona||"").trim()!==""){
+        textBlock(doc, conveniosClona, CONTENT_W, y, 4.5);
       }
-
-      // TA
-      textBlock(doc, numerosTA, PAGE_W - MARGIN_X*2, y);
+      if((numerosTA||"").trim()!==""){
+        textBlock(doc, numerosTA, CONTENT_W, y, 4.5);
+      }
 
       pdfDoc = doc;
       document.getElementById('preview').style.display = 'block';
