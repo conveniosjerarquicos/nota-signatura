@@ -50,6 +50,10 @@
           <label>Número de Convenio</label>
           <input type="text" id="numeroConvenio" placeholder="Ej: 260/75">
         </div>
+        <div class="full">
+          <label>Vigencia</label>
+          <input type="text" id="vigencia" placeholder="Ej: 01/09/2025">
+        </div>
       </div>
     </div>
 
@@ -111,11 +115,11 @@
     <div class="section">
       <h3>TA (Tasa Acumulada)</h3>
       <label>Números de TA</label>
-      <input type="text" id="numerosTA" placeholder="Ej: TA-001, TA-002, TA-003">
+      <input type="text" id="numerosTA" placeholder="Ej: TA2024171; TA202517.99">
     </div>
 
     <button class="btn" onclick="generarPDF()">🔄 Generar PDF</button>
-    <div class="note">En el PDF solo se colocarán los valores ingresados (sin etiquetas). “CLONA” y “TA” se muestran al pie con letra más chica.</div>
+    <div class="note">En el PDF se respetan los bloques tipo carta. “CLONA” y “TA” aparecen al pie en letra más chica.</div>
 
     <div class="preview" id="preview">
       <p style="color:#10b981;font-weight:700;margin:10px 0 0">✅ Documento listo. Podés descargarlo:</p>
@@ -131,15 +135,13 @@
 
     // jsPDF A4 en mm
     const PAGE_W = 210, PAGE_H = 297;
-    const MARGIN_X = 20;                 // márgenes laterales del documento
+    const MARGIN_X = 20;                       // márgenes laterales
     const CONTENT_W = PAGE_W - MARGIN_X*2;
 
-    // Membrete/Pie dentro de márgenes (ajuste proporcional, sin estirar)
-    const HEADER_MAX_H = 14;             // más chico y dentro de márgenes
-    const FOOTER_MAX_H = 12;
-
-    let HEADER_H = 10;
-    let FOOTER_H = 10;
+    // Membrete/Pie dentro de márgenes (escala proporcional, sin estirar)
+    const HEADER_MAX_H = 14;                   // alto máx. visible del membrete
+    const FOOTER_MAX_H = 12;                   // alto máx. visible del pie
+    let HEADER_H = 10, FOOTER_H = 10;
 
     function toggleClona(){
       const v = document.getElementById('clona').value;
@@ -175,12 +177,12 @@
         doc.addImage(headerImg, "PNG", MARGIN_X, 10, CONTENT_W, HEADER_H); // dentro de márgenes
       }
       if(footerImg){
-        doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - FOOTER_H - 8, CONTENT_W, FOOTER_H); // dentro de márgenes
+        doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - FOOTER_H - 8, CONTENT_W, FOOTER_H);
       }
     }
 
-    function topY(){ return 10 + HEADER_H + 8; }                     // inicio de texto tras el membrete
-    function bottomY(){ return PAGE_H - FOOTER_H - 12; }              // límite superior del pie
+    function topY(){ return 10 + HEADER_H + 10; }     // inicio de texto tras el membrete
+    function bottomY(){ return PAGE_H - FOOTER_H - 14; } // límite superior del pie
 
     function ensureSpace(doc, needed, yRef){
       if(yRef.value + needed > bottomY()){
@@ -188,15 +190,16 @@
       }
     }
 
-    function textBlock(doc, value, width, yRef, fontSize=12, lineH=5, align="left"){
+    function textBlock(doc, value, width, yRef, fontSize=12, lineH=5, align="left", before=0, after=3){
       const val = (value || "").toString().trim();
       if(!val) return;
+      yRef.value += before;
       doc.setFontSize(fontSize);
       const lines = doc.splitTextToSize(val, width);
       const h = lines.length * lineH + 1;
       ensureSpace(doc, h, yRef);
       doc.text(lines, MARGIN_X, yRef.value, { align });
-      yRef.value += h + 3;
+      yRef.value += h + after;
     }
 
     let pdfDoc=null;
@@ -211,6 +214,7 @@
       const provincia      = document.getElementById('provincia').value;
       const nombreConvenio = document.getElementById('nombreConvenio').value;
       const numeroConvenio = document.getElementById('numeroConvenio').value;
+      const vigencia       = document.getElementById('vigencia').value;
 
       const cuerpoNota     = document.getElementById('cuerpoNota').value;
 
@@ -224,38 +228,49 @@
       const conveniosClona = document.getElementById('conveniosClona').value;
       const numerosTA      = document.getElementById('numerosTA').value;
 
-      // === Composición tipo carta ===
+      // === Composición tipo carta (espacios como el ejemplo) ===
       let y = { value: topY() };
 
       // 1) Encabezado: fecha y datos del prestador (solo valores, alineado a la izquierda)
-      doc.setFont(undefined, "normal");
-      textBlock(doc, fecha,          CONTENT_W, y, 12, 5, "left");
-      textBlock(doc, provincia,      CONTENT_W, y, 12, 5, "left");
-      textBlock(doc, nombreConvenio, CONTENT_W, y, 12, 5, "left");
-      textBlock(doc, numeroConvenio, CONTENT_W, y, 12, 5, "left");
+      // fecha
+      textBlock(doc, fecha, CONTENT_W, y, 12, 5.2, "left", 0, 4);
+      // nombre del convenio (línea), luego "Convenio <número> – <provincia>"
+      textBlock(doc, nombreConvenio, CONTENT_W, y, 12, 5.2, "left", 0, 1);
+      textBlock(doc, `Convenio ${numeroConvenio} – ${provincia}`, CONTENT_W, y, 12, 5.2, "left", 0, 6);
 
-      // Separación clara antes del cuerpo
-      y.value += 4;
+      // línea separadora como en el ejemplo
+      ensureSpace(doc, 4, y);
+      doc.setDrawColor(160); doc.setLineWidth(0.35);
+      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
+      y.value += 8;
 
-      // 2) Cuerpo de la nota (párrafos, con aire)
-      textBlock(doc, cuerpoNota, CONTENT_W, y, 12, 5.2, "left");
-      y.value += 6; // más espacio antes de firmantes
+      // 2) “A quien corresponda:”
+      textBlock(doc, "A quien corresponda:", CONTENT_W, y, 12, 5.2, "left", 0, 6);
 
-      // 3) Firmantes (solo valores, con más aire entre líneas)
-      textBlock(doc, auxiliar,      CONTENT_W, y, 12, 5.2, "left");
-      y.value += 2;
-      textBlock(doc, referente,     CONTENT_W, y, 12, 5.2, "left");
-      y.value += 2;
-      if((subgerente||"").trim()!==""){
-        textBlock(doc, subgerente,  CONTENT_W, y, 12, 5.2, "left");
-        y.value += 2;
-      }
-      textBlock(doc, firmante,      CONTENT_W, y, 12, 5.2, "left");
+      // 3) Cuerpo (párrafos). Podés escribir varias líneas en el textarea; se respeta el espaciado
+      textBlock(doc, cuerpoNota, CONTENT_W, y, 12, 5.2, "left", 0, 8);
+
+      // 4) Cierre corto (opcional, al estilo del ejemplo)
+      // textBlock(doc, "Sin más, saludamos atte.", CONTENT_W, y, 12, 5.2, "left", 0, 10);
+
+      // 5) Firmantes con aire
+      // “Por Jerárquicos Salud:”
+      textBlock(doc, "Por Jerárquicos Salud:", CONTENT_W, y, 12, 5.2, "left", 0, 4);
+      textBlock(doc, auxiliar,  CONTENT_W, y, 12, 5.2, "left", 0, 2);
+      textBlock(doc, referente, CONTENT_W, y, 12, 5.2, "left", 0, 8);
+
+      // “Por el Convenio:”
+      textBlock(doc, "Por el Convenio:", CONTENT_W, y, 12, 5.2, "left", 0, 4);
+      textBlock(doc, firmante, CONTENT_W, y, 12, 5.2, "left", 0, 2);
       if((firmanteEmail||"").trim()!==""){
-        textBlock(doc, firmanteEmail, CONTENT_W, y, 11, 5, "left");
+        textBlock(doc, firmanteEmail, CONTENT_W, y, 11, 5, "left", 0, 8);
+      }
+      if((subgerente||"").trim()!==""){
+        // si querés mostrar subgerente aquí, descomentá:
+        // textBlock(doc, subgerente, CONTENT_W, y, 12, 5.2, "left", 0, 8);
       }
 
-      // 4) Pie: CLONA y TA con etiquetas y letra más chica
+      // 6) Pie: CLONA y TA con etiquetas y letra más chica (bien abajo)
       y.value += 6;
       doc.setFontSize(10);
       if(clona === "SI" && (conveniosClona||"").trim()!==""){
@@ -264,7 +279,7 @@
         doc.text("CLONA", MARGIN_X, y.value);
         y.value += 5;
         doc.setFont(undefined, "normal");
-        textBlock(doc, conveniosClona, CONTENT_W, y, 10, 4.5, "left");
+        textBlock(doc, conveniosClona, CONTENT_W, y, 10, 4.5, "left", 0, 6);
       }
 
       if((numerosTA||"").trim()!==""){
@@ -273,7 +288,7 @@
         doc.text("TA", MARGIN_X, y.value);
         y.value += 5;
         doc.setFont(undefined, "normal");
-        textBlock(doc, numerosTA, CONTENT_W, y, 10, 4.5, "left");
+        textBlock(doc, numerosTA, CONTENT_W, y, 10, 4.5, "left", 0, 2);
       }
 
       pdfDoc = doc;
@@ -283,8 +298,12 @@
 
     function descargarPDF(){
       if(pdfDoc){
-        const numero = (document.getElementById('numeroConvenio').value || "").replace(/[^a-zA-Z0-9]/g,"_");
-        pdfDoc.save(`NotaSignatura_${numero || 'sin_numero'}.pdf`);
+        const numero   = (document.getElementById('numeroConvenio').value || "").trim();
+        const nombre   = (document.getElementById('nombreConvenio').value || "").trim();
+        const vigencia = (document.getElementById('vigencia').value || "").trim();
+        const safe = s => s.replace(/\s+/g,' ').replace(/[/\\:*?"<>|]+/g,'_');
+        const file = `${safe(numero)} - ${safe(nombre)} - ${safe(vigencia)}`.replace(/\s{2,}/g,' ').trim();
+        pdfDoc.save(`${file || 'NotaSignatura'}.pdf`);
       }
     }
 
