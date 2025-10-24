@@ -51,7 +51,7 @@
             <input type="text" id="numeroConvenioLookup" placeholder="Ej: 88">
             <button class="btn btn-secondary" style="width:auto" onclick="buscarDesdeSheets()">Buscar</button>
           </div>
-          <div class="hint">Escribí el número y tocá “Buscar” para completar el formulario</div>
+          <div class="hint">Ingresá el número y tocá “Buscar” para completar el formulario</div>
         </div>
       </div>
 
@@ -105,7 +105,7 @@
       <div class="grid">
         <div><label>Auxiliar</label><input id="auxiliar"></div>
         <div><label>Referente</label><input id="referente"></div>
-        <div><label>Subgerente</label><input id="subgerente"></div>
+        <div><label>Subgerente (opcional)</label><input id="subgerente"></div>
         <div><label>Firmante del Convenio</label><input id="firmante"></div>
         <div><label>Cargo del Firmante</label><input id="cargoFirmante"></div>
       </div>
@@ -137,7 +137,7 @@
     </div>
 
     <button class="btn" onclick="generarPDF()">🔄 Generar PDF</button>
-    <div class="note">Incluye membrete, pie, firmas y adjuntos</div>
+    <div class="note">Incluye membrete, pie, firmas (2 columnas) y adjuntos</div>
 
     <div class="preview" id="preview">
       <p style="color:#10b981;font-weight:700;margin:10px 0 0">✅ Documento listo:</p>
@@ -151,22 +151,37 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <script>
-    // ============= CONFIGURACIÓN IMÁGENES =============
+    /* ===================== CONFIG ===================== */
+    // Membrete y pie (desde tu repo)
     const BASE = "https://conveniosjerarquicos.github.io/nota-signatura";
     const HEADER = `${BASE}/membrete.png`;
     const FOOTER = `${BASE}/pie.png`;
 
-    let headerImg, footerImg, pdfDoc = null;
+    // CSV publicado (el MISMO link, solo cambiaremos el gid por hoja)
+    const PUB_CSV_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTtwmE86YOrUU_3zaUAY2mXfwGrxe3f3sUdoI3ckQfj0cs3D1R46SzXH4tStGBiaVe6PiQFIR5DQ_U0/pub?single=true&output=csv&gid=";
 
-    // Fecha automática
+    // Lista de pestañas (agregá todas con su gid):
+    const SHEETS = [
+      { name: "Juan Pablo Trossero", gid: "0" },
+      // { name: "Nicolás Molli",       gid: "XXXXXXXXX" },
+      // { name: "Fernando Giordano",  gid: "XXXXXXXXX" },
+      // { name: "Exequiel Mayans",    gid: "XXXXXXXXX" },
+      // { name: "Emiliano Riestra",   gid: "XXXXXXXXX" },
+      // { name: "Ulises Velázquez",   gid: "XXXXXXXXX" },
+    ];
+
+    // Referente fijo
+    const REFERENTE_FIJO = "Leonardo Sibilia";
+
+    /* ============== UI básica / PDF helpers ============== */
+    let headerImg, footerImg, pdfDoc = null;
     document.getElementById("fecha").value = new Date().toISOString().slice(0,10);
 
     function toggleClona(){
-      document.getElementById("clonaBox").style.display = 
+      document.getElementById("clonaBox").style.display =
         document.getElementById("clona").value === "SI" ? "block" : "none";
     }
 
-    // ====== Cargar imágenes ======
     function loadImage(url){
       return new Promise((res,rej)=>{
         const img = new Image();
@@ -176,78 +191,289 @@
         img.src = url;
       });
     }
-
     async function ensureImages(){
       if(!headerImg) headerImg = await loadImage(HEADER);
       if(!footerImg) footerImg = await loadImage(FOOTER);
     }
 
-    // ====== Generar PDF ======
+    const imagesData = [];  // {dataURL,w,h}
+    const tablesHTML = [];
+
+    document.getElementById('imgInput').addEventListener('change', async (e)=>{
+      for (const f of e.target.files){
+        const dataURL = await fileToDataURL(f);
+        const dim = await measureDataURL(dataURL);
+        imagesData.push({dataURL, ...dim});
+      }
+      alert("Imágenes cargadas: " + imagesData.length);
+    });
+
+    document.getElementById('richArea').addEventListener('paste', async (e)=>{
+      const cd = e.clipboardData;
+      if (!cd) return;
+      for (const item of cd.items){
+        if (item.type.indexOf("image") === 0){
+          const f = item.getAsFile();
+          const dataURL = await fileToDataURL(f);
+          const dim = await measureDataURL(dataURL);
+          imagesData.push({dataURL, ...dim});
+        }
+      }
+      const html = cd.getData("text/html");
+      if (html && html.includes("<table")){
+        const div = document.createElement("div");
+        div.innerHTML = html;
+        const tbl = div.querySelector("table");
+        if (tbl){
+          const rows = [...tbl.rows].map(r => [...r.cells].map(c => c.innerText.trim()));
+          tablesHTML.push(rows);
+        }
+      }
+    });
+
+    function fileToDataURL(file){
+      return new Promise(res=>{
+        const fr = new FileReader();
+        fr.onload = ()=>res(fr.result);
+        fr.readAsDataURL(file);
+      });
+    }
+    function measureDataURL(dataURL){
+      return new Promise(res=>{
+        const img = new Image();
+        img.onload = ()=>res({w:img.width, h:img.height});
+        img.src = dataURL;
+      });
+    }
+
+    const PAGE_W=210, PAGE_H=297, MARGIN_X=20, CONTENT_W=PAGE_W-MARGIN_X*2;
+    const HEADER_MAX_H=14, FOOTER_MAX_H=12;
+    function topY(){ return 10 + 14 + 12; }
+    function bottomY(){ return PAGE_H - FOOTER_MAX_H - 16; }
+    function ensureSpace(doc, needed, yRef){
+      if (yRef.value + needed > bottomY()){
+        doc.addPage(); addHeaderFooter(doc); yRef.value = topY();
+      }
+    }
+    function addHeaderFooter(doc){
+      if (headerImg) doc.addImage(headerImg, "PNG", MARGIN_X, 10, CONTENT_W, 14);
+      if (footerImg) doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - FOOTER_MAX_H - 8, CONTENT_W, FOOTER_MAX_H);
+    }
+    function textBlock(doc, value, width, yRef, opt={}){
+      const { fontSize=12, lineH=5.4, align="left", before=0, after=4, bold=false } = opt;
+      const v = (value || "").toString().trim(); if (!v) return;
+      yRef.value += before;
+      doc.setFont("helvetica", bold ? "bold":"normal"); doc.setFontSize(fontSize);
+      const lines = doc.splitTextToSize(v, width);
+      const h = lines.length * lineH + 1;
+      ensureSpace(doc, h, yRef);
+      doc.text(lines, MARGIN_X, yRef.value, { align });
+      yRef.value += h + after;
+    }
+    function textBlockAt(doc, value, x, width, yRef, opt={}){
+      const { fontSize=12, lineH=5.4, bold=false, before=0, after=4 } = opt;
+      const v = (value || "").toString().trim(); if(!v) return;
+      yRef.value += before;
+      const lines = doc.splitTextToSize(v, width); const h = lines.length * lineH + 1;
+      if (yRef.value + h > bottomY()){ doc.addPage(); addHeaderFooter(doc); yRef.value = topY(); }
+      doc.setFont("helvetica", bold?"bold":"normal"); doc.setFontSize(fontSize);
+      doc.text(lines, x, yRef.value); yRef.value += h + after;
+    }
+
     async function generarPDF(){
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+      const doc = new jsPDF({ unit:"mm", format:"a4" });
       await ensureImages();
+      addHeaderFooter(doc);
 
-      // Insertar membrete y pie
-      doc.addImage(headerImg, "PNG", 10, 10, 190, 20);
-      doc.addImage(footerImg, "PNG", 10, 270, 190, 15);
+      const fecha          = formatDateDMY(document.getElementById("fecha").value);
+      const provincia      = document.getElementById("provincia").value;
+      const nombreConvenio = document.getElementById("nombreConvenio").value;
+      const numeroConvenio = document.getElementById("numeroConvenio").value;
+      const prestadorEmail = document.getElementById("prestadorEmail").value;
+      const cuerpoNota     = document.getElementById("cuerpoNota").value;
 
-      let y = 40;
-      const add = (text, size=12, bold=false, spacing=6)=>{
-        doc.setFontSize(size);
-        doc.setFont("helvetica", bold?"bold":"normal");
-        doc.text(text, 20, y);
-        y += spacing;
+      const auxiliar       = document.getElementById("auxiliar").value;
+      const referente      = document.getElementById("referente").value || REFERENTE_FIJO;
+      const subgerente     = document.getElementById("subgerente").value;
+      const firmante       = document.getElementById("firmante").value;
+      const cargoFirmante  = document.getElementById("cargoFirmante").value;
+
+      const clona          = document.getElementById("clona").value;
+      const conveniosClona = document.getElementById("conveniosClona").value;
+      const numerosTA      = document.getElementById("numerosTA").value;
+
+      let y = { value: topY() };
+
+      // Encabezado tipo carta
+      textBlock(doc, fecha, CONTENT_W, y, {fontSize:12, after:6});
+      textBlock(doc, nombreConvenio, CONTENT_W, y, {fontSize:12, after:2});
+      textBlock(doc, `Convenio ${numeroConvenio} – ${provincia}`, CONTENT_W, y, {fontSize:12, after:2});
+      if (prestadorEmail.trim()!==""){ textBlock(doc, prestadorEmail, CONTENT_W, y, {fontSize:11, after:14}); }
+      else { y.value += 14; }
+
+      // separador
+      ensureSpace(doc, 6, y); doc.setDrawColor(170); doc.setLineWidth(0.35);
+      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value); y.value += 14;
+
+      // Cuerpo
+      textBlock(doc, "A quien corresponda:", CONTENT_W, y, {fontSize:12, bold:true, after:10});
+      textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:18});
+
+      // Adjuntos: tablas
+      for (const rows of tablesHTML){
+        ensureSpace(doc, 20, y);
+        doc.autoTable({ startY: y.value, head: [rows[0]], body: rows.slice(1), styles:{fontSize:10}, theme:'grid', margin:{left:MARGIN_X, right:MARGIN_X} });
+        y.value = doc.lastAutoTable.finalY + 8;
+      }
+      // Adjuntos: imágenes
+      for (const img of imagesData){
+        const maxW = CONTENT_W, maxH = 100;
+        let w = maxW, h = w * (img.h/img.w);
+        if (h > maxH){ h = maxH; w = h * (img.w/img.h); }
+        ensureSpace(doc, h+6, y);
+        doc.addImage(img.dataURL, "PNG", MARGIN_X, y.value, w, h);
+        y.value += h + 8;
       }
 
-      add(document.getElementById("fecha").value);
-      add(document.getElementById("nombreConvenio").value);
-      add(`Convenio ${document.getElementById("numeroConvenio").value} – ${document.getElementById("provincia").value}`);
-      add(document.getElementById("prestadorEmail").value,11,false,10);
-      add("A quien corresponda:",12,true,10);
-      add(document.getElementById("cuerpoNota").value,12,false,10);
-      add(`${document.getElementById("firmante").value} — ${document.getElementById("cargoFirmante").value}`,12,false,8);
+      // Firmas en dos columnas
+      const columnGap = 12, colW = (CONTENT_W - columnGap) / 2;
+      const xLeft = MARGIN_X, xRight = MARGIN_X + colW + columnGap;
+      let yLeft = { value: y.value }, yRight = { value: y.value };
+
+      textBlockAt(doc, "Por Jerárquicos Salud:", xLeft, colW, yLeft, {bold:true, fontSize:12, after:10});
+      textBlockAt(doc, `${auxiliar} — Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
+      textBlockAt(doc, `${referente} — Referente del Área Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
+
+      textBlockAt(doc, "Por el Convenio:", xRight, colW, yRight, {bold:true, fontSize:12, after:10});
+      const firmaConCargo = [firmante, cargoFirmante].filter(Boolean).join(" — ");
+      textBlockAt(doc, firmaConCargo, xRight, colW, yRight, {fontSize:12, after:6});
+      if (subgerente.trim()!==""){ textBlockAt(doc, `${subgerente} — Sub gerente`, xRight, colW, yRight, {fontSize:12, after:6}); }
+
+      y.value = Math.max(yLeft.value, yRight.value) + 18;
+
+      // CLONA / TA al pie
+      if (clona === "SI" && (conveniosClona||"").trim()!==""){
+        textBlock(doc, "CLONA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
+        textBlock(doc, conveniosClona, CONTENT_W, y, {fontSize:10, lineH:4.6, after:8});
+      }
+      if ((numerosTA||"").trim()!==""){
+        textBlock(doc, "TA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
+        textBlock(doc, numerosTA, CONTENT_W, y, {fontSize:10, lineH:4.6, after:2});
+      }
 
       pdfDoc = doc;
       document.getElementById("preview").style.display = "block";
+      document.getElementById("preview").scrollIntoView({behavior:"smooth"});
     }
 
     function descargarPDF(){
-      if(pdfDoc) pdfDoc.save("Nota-de-Signatura.pdf");
+      if(!pdfDoc) return;
+      const numero   = (document.getElementById('numeroConvenio').value || "").trim();
+      const nombre   = (document.getElementById('nombreConvenio').value || "").trim();
+      const vigencia = (document.getElementById('vigencia').value || "").trim();
+      const safe = s => s.replace(/\s+/g,' ').replace(/[/\\:*?"<>|]+/g,'_').trim();
+      const file = `${safe(numero)} - ${safe(nombre)} - ${safe(vigencia)}` || 'NotaSignatura';
+      pdfDoc.save(`${file}.pdf`);
+    }
+    function formatDateDMY(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-"); return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`; }
+  </script>
+
+  <!-- ====== AUTOCOMPLETAR MULTI-HOJA (CSV por gid) ====== -->
+  <script>
+    const norm = (s) => String(s || "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+
+    // Mapea encabezados de cada hoja -> claves canónicas
+    function buildHeaderIndex(headers) {
+      const map = {};
+      headers.forEach((h, i) => {
+        const n = norm(h);
+        if (/(^| )numero( | )de( | )convenio( |$)/.test(n))        map["numeroconvenio"] = i;
+        else if (/(^| )nombre( | )del( | )convenio( |$)/.test(n))  map["nombreconvenio"] = i;
+        else if (/^provincia$/.test(n))                            map["provincia"] = i;
+        else if (/(^| )correo( | )del( | )convenio( |$)/.test(n))  map["prestadoremail"] = i;
+        else if (/(^| )nombre( | )del( | )auxiliar( |$)/.test(n))  map["auxiliar"] = i;
+        else if (/(^| )nombre( | )del( | )referente( |$)/.test(n)) map["referente"] = i;
+        else if (/(^| )subgerente( |$)/.test(n))                   map["subgerente"] = i;
+        else if (/(^| )nombre( | )del( | )firmante( | )del( | )convenio/.test(n)) map["firmante"] = i;
+        else if (/(^| )cargo( | )del( | )firmante/.test(n))        map["cargofirmante"] = i;
+        else if (/^vigencia$/.test(n))                             map["vigencia"] = i;
+        else if (/(^| )cuerpo( | )de( | )la( | )nota( |$)/.test(n)) map["cuerponota"] = i;
+      });
+      return map;
     }
 
-    // ====== AUTOCOMPLETAR DESDE SHEETS ======
-    const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTtwmE86YOrUU_3zaUAY2mXfwGrxe3f3sUdoI3ckQfj0cs3D1R46SzXH4tStGBiaVe6PiQFIR5DQ_U0/pub?gid=0&single=true&output=csv";
+    function setIf(id, v){ if (v !== undefined && v !== null && String(v).trim() !== "") document.getElementById(id).value = v; }
+    function toISO(dmy){
+      const s = String(dmy).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (m){ const [_, d, mo, y] = m; return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+      return "";
+    }
+
+    async function fetchSheetCSV(gid){
+      const url = PUB_CSV_BASE + encodeURIComponent(gid);
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.text();
+    }
 
     async function buscarDesdeSheets(){
       const numero = (document.getElementById("numeroConvenioLookup").value || "").trim();
-      if(!numero){ alert("Ingresá un número de convenio"); return; }
+      if (!numero){ alert("Ingresá un número de convenio"); return; }
 
-      const res = await fetch(SHEET_CSV);
-      const csv = await res.text();
-      const data = Papa.parse(csv, {header:true}).data;
+      // recorremos todas las pestañas declaradas
+      for (const s of SHEETS){
+        try{
+          const csv = await fetchSheetCSV(s.gid);
+          const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+          const rows = parsed.data;
+          if (!rows?.length) continue;
 
-      const match = data.find(r => String(r.NumeroConvenio).trim() === numero);
-      if(!match){ alert("No se encontró ese número en la hoja"); return; }
+          const headers = parsed.meta.fields || Object.keys(rows[0]);
+          const idx = buildHeaderIndex(headers);
+          const get = (row, key) => {
+            const i = idx[key]; if (i == null) return "";
+            const headerReal = headers[i]; return row[headerReal] ?? "";
+          };
 
-      const map = {
-        numeroConvenio:"NumeroConvenio",
-        nombreConvenio:"NombreConvenio",
-        provincia:"Provincia",
-        vigencia:"Vigencia",
-        prestadorEmail:"PrestadorEmail",
-        auxiliar:"Auxiliar",
-        referente:"Referente",
-        subgerente:"Subgerente",
-        firmante:"Firmante",
-        cargoFirmante:"CargoFirmante",
-        cuerpoNota:"CuerpoNota"
-      };
-      Object.entries(map).forEach(([id,key])=>{
-        if(match[key]) document.getElementById(id).value = match[key];
-      });
+          const found = rows.find(r => norm(get(r, "numeroconvenio")) === norm(numero));
+          if (!found) continue; // proba próxima pestaña
 
-      alert("✔ Datos completados desde la hoja");
+          // Si existe columna "Nombre del Auxiliar" úsala; si no, tomá el nombre de la pestaña
+          const auxiliar = get(found, "auxiliar") || s.name;
+
+          setIf("numeroConvenio",  get(found, "numeroconvenio"));
+          setIf("nombreConvenio",  get(found, "nombreconvenio"));
+          setIf("provincia",       get(found, "provincia"));
+          setIf("prestadorEmail",  get(found, "prestadoremail"));
+          setIf("auxiliar",        auxiliar);
+          setIf("referente",       get(found, "referente") || REFERENTE_FIJO);
+          setIf("subgerente",      get(found, "subgerente"));
+          setIf("firmante",        get(found, "firmante"));
+          setIf("cargoFirmante",   get(found, "cargofirmante"));
+
+          const vig = get(found, "vigencia");
+          if (vig) document.getElementById("vigencia").value = toISO(vig);
+
+          const cuerpo = get(found, "cuerponota");
+          if (cuerpo){
+            const base = "Por medio del presente se acuerda ";
+            document.getElementById("cuerpoNota").value = base + cuerpo;
+          }
+
+          alert(`✔ Datos completados (hoja: ${s.name})`);
+          return; // ya encontramos, salimos
+        }catch(e){
+          // si una pestaña falla, seguimos con la siguiente
+          console.warn("No pude leer gid", s.gid, e);
+        }
+      }
+
+      alert("No se encontró ese número en ninguna hoja.");
     }
   </script>
 </body>
