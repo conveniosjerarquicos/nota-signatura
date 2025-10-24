@@ -48,7 +48,7 @@
         <div>
           <label>Nº de convenio (para autocompletar)</label>
           <div class="row-inline">
-            <input type="text" id="numeroConvenioLookup" placeholder="Ej: 260/75">
+            <input type="text" id="numeroConvenioLookup" placeholder="Ej: 88">
             <button class="btn btn-secondary" style="width:auto" onclick="buscarDesdeSheets()">Buscar</button>
           </div>
           <div class="hint">Escribí el número y tocá “Buscar” para completar el formulario</div>
@@ -58,15 +58,15 @@
       <div class="grid" style="margin-top:10px">
         <div class="full">
           <label>Nombre del Convenio</label>
-          <input type="text" id="nombreConvenio" placeholder="Ej: Convenio Colectivo de Trabajo - Industria...">
+          <input type="text" id="nombreConvenio">
         </div>
         <div class="full">
           <label>Número de Convenio</label>
-          <input type="text" id="numeroConvenio" placeholder="Ej: 260/75">
+          <input type="text" id="numeroConvenio">
         </div>
         <div>
           <label>Provincia</label>
-          <input type="text" id="provincia" placeholder="Ej: Santa Fe">
+          <input type="text" id="provincia">
         </div>
         <div>
           <label>Vigencia</label>
@@ -74,7 +74,7 @@
         </div>
         <div class="full">
           <label>Correo del Convenio (prestador)</label>
-          <input type="email" id="prestadorEmail" placeholder="ejemplo@dominio.com">
+          <input type="email" id="prestadorEmail">
         </div>
       </div>
     </div>
@@ -82,10 +82,7 @@
     <!-- CUERPO -->
     <div class="section">
       <h3>Cuerpo de la Nota</h3>
-      <div>
-        <label>Texto</label>
-        <textarea id="cuerpoNota">Por medio del presente se acuerda </textarea>
-      </div>
+      <textarea id="cuerpoNota">Por medio del presente se acuerda </textarea>
     </div>
 
     <!-- ADJUNTOS -->
@@ -95,7 +92,6 @@
         <div class="full">
           <label>Área para pegar (Ctrl+V) imágenes o tablas</label>
           <div id="richArea" contenteditable="true" placeholder="Pegá acá imágenes o una tabla"></div>
-          <div class="hint">Podés pegar una grilla desde Excel/Sheets o imágenes; también podés subir archivos.</div>
         </div>
       </div>
       <div style="margin-top:10px">
@@ -107,26 +103,11 @@
     <div class="section">
       <h3>Firmantes</h3>
       <div class="grid">
-        <div>
-          <label>Nombre del Auxiliar</label>
-          <input type="text" id="auxiliar" placeholder="Nombre completo">
-        </div>
-        <div>
-          <label>Nombre del Referente</label>
-          <input type="text" id="referente" placeholder="Nombre completo">
-        </div>
-        <div class="full">
-          <label>Nombre del Subgerente (opcional)</label>
-          <input type="text" id="subgerente" placeholder="Dejar en blanco si no corresponde">
-        </div>
-        <div>
-          <label>Nombre del Firmante del Convenio</label>
-          <input type="text" id="firmante" placeholder="Nombre completo">
-        </div>
-        <div>
-          <label>Cargo del Firmante del Convenio</label>
-          <input type="text" id="cargoFirmante" placeholder="Ej: Director, Presidente, etc.">
-        </div>
+        <div><label>Auxiliar</label><input id="auxiliar"></div>
+        <div><label>Referente</label><input id="referente"></div>
+        <div><label>Subgerente</label><input id="subgerente"></div>
+        <div><label>Firmante del Convenio</label><input id="firmante"></div>
+        <div><label>Cargo del Firmante</label><input id="cargoFirmante"></div>
       </div>
     </div>
 
@@ -142,350 +123,131 @@
           </select>
         </div>
         <div class="full" id="clonaBox" style="display:none;">
-          <label>Convenios relacionados (si corresponde)</label>
-          <textarea id="conveniosClona" placeholder="Ej: CCT 123/75, CCT 456/80"></textarea>
+          <label>Convenios relacionados</label>
+          <textarea id="conveniosClona"></textarea>
         </div>
       </div>
     </div>
 
     <!-- TA -->
     <div class="section">
-      <h3>TA (Tasa Acumulada)</h3>
+      <h3>TA</h3>
       <label>Números de TA</label>
-      <input type="text" id="numerosTA" placeholder="Ej: TA2024171; TA202517.99">
+      <input type="text" id="numerosTA">
     </div>
 
     <button class="btn" onclick="generarPDF()">🔄 Generar PDF</button>
-    <div class="note">Formato carta; firmas en dos columnas; “CLONA/TA” al pie en letra más chica.</div>
+    <div class="note">Incluye membrete, pie, firmas y adjuntos</div>
 
     <div class="preview" id="preview">
-      <p style="color:#10b981;font-weight:700;margin:10px 0 0">✅ Documento listo. Podés descargarlo:</p>
+      <p style="color:#10b981;font-weight:700;margin:10px 0 0">✅ Documento listo:</p>
       <button class="btn" style="background:#10b981;margin-top:8px" onclick="descargarPDF()">📥 Descargar PDF</button>
     </div>
   </div>
 
-  <!-- jsPDF + AutoTable -->
+  <!-- LIBRERÍAS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <script>
-    // ====== IMÁGENES (sin 429) ======
-    const PAGES_BASE = "https://conveniosjerarquicos.github.io/nota-signatura";
-    const HEADER_URLS = [
-      `${PAGES_BASE}/membrete.png?v=${Date.now()}`,
-      "https://cdn.jsdelivr.net/gh/conveniosjerarquicos/nota-signatura@main/membrete.png"
-    ];
-    const FOOTER_URLS = [
-      `${PAGES_BASE}/pie.png?v=${Date.now()}`,
-      "https://cdn.jsdelivr.net/gh/conveniosjerarquicos/nota-signatura@main/pie.png"
-    ];
+    // ============= CONFIGURACIÓN IMÁGENES =============
+    const BASE = "https://conveniosjerarquicos.github.io/nota-signatura";
+    const HEADER = `${BASE}/membrete.png`;
+    const FOOTER = `${BASE}/pie.png`;
 
-    // --- Config página ---
-    const PAGE_W = 210, PAGE_H = 297, MARGIN_X = 20, CONTENT_W = PAGE_W - MARGIN_X * 2;
-    const HEADER_MAX_H = 14, FOOTER_MAX_H = 12;
-    let headerImg=null, footerImg=null, headerH=10, footerH=10;
+    let headerImg, footerImg, pdfDoc = null;
 
-    const GAP_AFTER_HEADER=14, GAP_AFTER_BODY=18, GAP_BETWEEN_SIGS=10, GAP_TO_FOOT_NOTES=18;
+    // Fecha automática
+    document.getElementById("fecha").value = new Date().toISOString().slice(0,10);
 
     function toggleClona(){
-      const v = document.getElementById('clona').value;
-      document.getElementById('clonaBox').style.display = (v === 'SI') ? 'block' : 'none';
+      document.getElementById("clonaBox").style.display = 
+        document.getElementById("clona").value === "SI" ? "block" : "none";
     }
 
-    // ====== Fecha automática (hoy) ======
-    (function setToday(){
-      const d = new Date();
-      const iso = d.toISOString().slice(0,10); // yyyy-mm-dd
-      document.getElementById('fecha').value = iso;
-    })();
-
-    // ====== Carga de imágenes en memoria ======
+    // ====== Cargar imágenes ======
     function loadImage(url){
-      return new Promise((resolve, reject)=>{
+      return new Promise((res,rej)=>{
         const img = new Image();
         img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error("No se pudo cargar " + url));
+        img.onload = ()=>res(img);
+        img.onerror = ()=>rej();
         img.src = url;
       });
     }
-    async function loadFirstAvailable(urls){
-      for (const u of urls){
-        try { return await loadImage(u); } catch(e) {}
-      }
-      return null;
-    }
-    async function ensureHeaderFooterLoaded(){
-      if (!headerImg) headerImg = await loadFirstAvailable(HEADER_URLS);
-      if (!footerImg) footerImg = await loadFirstAvailable(FOOTER_URLS);
-      if (headerImg) headerH = Math.min(CONTENT_W * (headerImg.naturalHeight/headerImg.naturalWidth), HEADER_MAX_H);
-      if (footerImg) footerH = Math.min(CONTENT_W * (footerImg.naturalHeight/footerImg.naturalWidth), FOOTER_MAX_H);
-    }
-    function addHeaderFooter(doc){
-      if (headerImg) doc.addImage(headerImg, "PNG", MARGIN_X, 10, CONTENT_W, headerH);
-      if (footerImg) doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - footerH - 8, CONTENT_W, footerH);
-    }
-    function topY(){ return 10 + (headerImg ? headerH : HEADER_MAX_H) + 12; }
-    function bottomY(){ return PAGE_H - (footerImg ? footerH : FOOTER_MAX_H) - 16; }
-    function ensureSpace(doc, needed, yRef){
-      if (yRef.value + needed > bottomY()){ doc.addPage(); addHeaderFooter(doc); yRef.value = topY(); }
+
+    async function ensureImages(){
+      if(!headerImg) headerImg = await loadImage(HEADER);
+      if(!footerImg) footerImg = await loadImage(FOOTER);
     }
 
-    // ====== Área de adjuntos: pegar imágenes/tablas ======
-    const imagesData = []; // {dataURL, w, h}
-    const tablesHTML = []; // arrays 2D
-
-    document.getElementById('imgInput').addEventListener('change', async (e)=>{
-      for (const f of e.target.files){
-        const dataURL = await fileToDataURL(f);
-        const dim = await measureDataURL(dataURL);
-        imagesData.push({dataURL, ...dim});
-      }
-      alert("Imágenes cargadas: " + imagesData.length);
-    });
-
-    document.getElementById('richArea').addEventListener('paste', async (e)=>{
-      const cd = e.clipboardData;
-      if (!cd) return;
-
-      // 1) Imágenes desde el portapapeles
-      for (const item of cd.items){
-        if (item.type.indexOf("image") === 0){
-          const f = item.getAsFile();
-          const dataURL = await fileToDataURL(f);
-          const dim = await measureDataURL(dataURL);
-          imagesData.push({dataURL, ...dim});
-        }
-      }
-
-      // 2) Tablas HTML pegadas
-      const html = cd.getData("text/html");
-      if (html && html.includes("<table")){
-        const div = document.createElement("div");
-        div.innerHTML = html;
-        const tbl = div.querySelector("table");
-        if (tbl){
-          const rows = [...tbl.rows].map(r => [...r.cells].map(c => c.innerText.trim()));
-          tablesHTML.push(rows);
-        }
-      }
-      // Dejamos que el navegador pegue visualmente en el div.
-    });
-
-    function fileToDataURL(file){
-      return new Promise(res=>{
-        const fr = new FileReader();
-        fr.onload = ()=>res(fr.result);
-        fr.readAsDataURL(file);
-      });
-    }
-    function measureDataURL(dataURL){
-      return new Promise(res=>{
-        const img = new Image();
-        img.onload = ()=>res({w:img.width, h:img.height});
-        img.src = dataURL;
-      });
-    }
-
-    // ====== Texto helpers ======
-    function textBlock(doc, value, width, yRef, opt={}){
-      const { fontSize=12, lineH=5.4, align="left", before=0, after=4, bold=false } = opt;
-      const v = (value || "").toString().trim(); if (!v) return;
-      yRef.value += before;
-      doc.setFont(undefined, bold ? "bold" : "normal"); doc.setFontSize(fontSize);
-      const lines = doc.splitTextToSize(v, width); const h = lines.length * lineH + 1;
-      ensureSpace(doc, h, yRef); doc.text(lines, MARGIN_X, yRef.value, { align });
-      yRef.value += h + after;
-    }
-    function textBlockAt(doc, value, x, width, yRef, opt={}){
-      const { fontSize=12, lineH=5.4, bold=false, before=0, after=4 } = opt;
-      const v = (value || "").toString().trim(); if(!v) return;
-      yRef.value += before;
-      const lines = doc.splitTextToSize(v, width); const h = lines.length * lineH + 1;
-      if (yRef.value + h > bottomY()){ doc.addPage(); addHeaderFooter(doc); yRef.value = topY(); }
-      doc.setFont(undefined, bold ? "bold" : "normal"); doc.setFontSize(fontSize);
-      doc.text(lines, x, yRef.value); yRef.value += h + after;
-    }
-
-    // ====== PDF ======
-    let pdfDoc = null;
-
+    // ====== Generar PDF ======
     async function generarPDF(){
-      try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      await ensureImages();
 
-        await ensureHeaderFooterLoaded();
-        addHeaderFooter(doc);
+      // Insertar membrete y pie
+      doc.addImage(headerImg, "PNG", 10, 10, 190, 20);
+      doc.addImage(footerImg, "PNG", 10, 270, 190, 15);
 
-        const fecha          = formatDateDMY(document.getElementById('fecha').value);
-        const provincia      = document.getElementById('provincia').value;
-        const nombreConvenio = document.getElementById('nombreConvenio').value;
-        const numeroConvenio = document.getElementById('numeroConvenio').value;
-        const vigencia       = formatDateDMY(document.getElementById('vigencia').value);
-        const prestadorEmail = document.getElementById('prestadorEmail').value;
-
-        const cuerpoNota     = document.getElementById('cuerpoNota').value;
-
-        const auxiliar       = document.getElementById('auxiliar').value;
-        const referente      = document.getElementById('referente').value;
-        const subgerente     = document.getElementById('subgerente').value;
-        const firmante       = document.getElementById('firmante').value;
-        const cargoFirmante  = document.getElementById('cargoFirmante').value;
-
-        const clona          = document.getElementById('clona').value;
-        const conveniosClona = document.getElementById('conveniosClona').value;
-        const numerosTA      = document.getElementById('numerosTA').value;
-
-        let y = { value: topY() };
-
-        // Encabezado
-        textBlock(doc, fecha, CONTENT_W, y, {fontSize:12, after:6});
-        textBlock(doc, nombreConvenio, CONTENT_W, y, {fontSize:12, after:2});
-        textBlock(doc, `Convenio ${numeroConvenio} – ${provincia}`, CONTENT_W, y, {fontSize:12, after:2});
-        if (prestadorEmail.trim()!==""){ textBlock(doc, prestadorEmail, CONTENT_W, y, {fontSize:11, after:GAP_AFTER_HEADER}); }
-        else { y.value += GAP_AFTER_HEADER; }
-
-        // separador
-        ensureSpace(doc, 6, y); doc.setDrawColor(170); doc.setLineWidth(0.35);
-        doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value); y.value += GAP_AFTER_HEADER;
-
-        // A quien corresponda
-        textBlock(doc, "A quien corresponda:", CONTENT_W, y, {fontSize:12, bold:true, after:10});
-
-        // Cuerpo
-        textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:GAP_AFTER_BODY});
-
-        // Adjuntos: tablas
-        for (const rows of tablesHTML){
-          ensureSpace(doc, 20, y);
-          doc.autoTable({ startY: y.value, head: [rows[0]], body: rows.slice(1), styles:{fontSize:10}, theme:'grid', margin:{left:MARGIN_X, right:MARGIN_X} });
-          y.value = doc.lastAutoTable.finalY + 8;
-        }
-
-        // Adjuntos: imágenes (escala al ancho)
-        for (const img of imagesData){
-          const maxW = CONTENT_W, maxH = 100;
-          let w = maxW, h = w * (img.h/img.w);
-          if (h > maxH){ h = maxH; w = h * (img.w/img.h); }
-          ensureSpace(doc, h+6, y);
-          doc.addImage(img.dataURL, "PNG", MARGIN_X, y.value, w, h);
-          y.value += h + 8;
-        }
-
-        // Firmas en 2 columnas
-        const columnGap = 12, colW = (CONTENT_W - columnGap) / 2;
-        const xLeft = MARGIN_X, xRight = MARGIN_X + colW + columnGap;
-        let yLeft = { value: y.value }, yRight = { value: y.value };
-
-        textBlockAt(doc, "Por Jerárquicos Salud:", xLeft, colW, yLeft, {bold:true, fontSize:12, after:GAP_BETWEEN_SIGS});
-        textBlockAt(doc, `${auxiliar} — Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
-        textBlockAt(doc, `${referente} — Referente del Área Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
-
-        textBlockAt(doc, "Por el Convenio:", xRight, colW, yRight, {bold:true, fontSize:12, after:GAP_BETWEEN_SIGS});
-        const firmaConCargo = [firmante, cargoFirmante].filter(Boolean).join(" — ");
-        textBlockAt(doc, firmaConCargo, xRight, colW, yRight, {fontSize:12, after:6});
-        if (subgerente.trim()!==""){ textBlockAt(doc, `${subgerente} — Sub gerente`, xRight, colW, yRight, {fontSize:12, after:6}); }
-
-        y.value = Math.max(yLeft.value, yRight.value) + GAP_TO_FOOT_NOTES;
-
-        // CLONA / TA al pie (chico)
-        if (clona === "SI" && (conveniosClona||"").trim()!==""){
-          textBlock(doc, "CLONA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
-          textBlock(doc, conveniosClona, CONTENT_W, y, {fontSize:10, lineH:4.6, after:8});
-        }
-        if ((numerosTA||"").trim()!==""){
-          textBlock(doc, "TA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
-          textBlock(doc, numerosTA, CONTENT_W, y, {fontSize:10, lineH:4.6, after:2});
-        }
-
-        pdfDoc = doc;
-        document.getElementById('preview').style.display = 'block';
-        document.getElementById('preview').scrollIntoView({ behavior:'smooth' });
-
-      } catch (err) {
-        console.error(err);
-        alert("Error generando el PDF. Probá recargar la página.");
+      let y = 40;
+      const add = (text, size=12, bold=false, spacing=6)=>{
+        doc.setFontSize(size);
+        doc.setFont("helvetica", bold?"bold":"normal");
+        doc.text(text, 20, y);
+        y += spacing;
       }
+
+      add(document.getElementById("fecha").value);
+      add(document.getElementById("nombreConvenio").value);
+      add(`Convenio ${document.getElementById("numeroConvenio").value} – ${document.getElementById("provincia").value}`);
+      add(document.getElementById("prestadorEmail").value,11,false,10);
+      add("A quien corresponda:",12,true,10);
+      add(document.getElementById("cuerpoNota").value,12,false,10);
+      add(`${document.getElementById("firmante").value} — ${document.getElementById("cargoFirmante").value}`,12,false,8);
+
+      pdfDoc = doc;
+      document.getElementById("preview").style.display = "block";
     }
 
     function descargarPDF(){
-      if (pdfDoc){
-        const numero   = (document.getElementById('numeroConvenio').value || "").trim();
-        const nombre   = (document.getElementById('nombreConvenio').value || "").trim();
-        const vigencia = (document.getElementById('vigencia').value || "").trim();
-        const safe = s => s.replace(/\s+/g,' ').replace(/[/\\:*?"<>|]+/g,'_').trim();
-        const file = `${safe(numero)} - ${safe(nombre)} - ${safe(vigencia)}` || 'NotaSignatura';
-        pdfDoc.save(`${file}.pdf`);
-      }
+      if(pdfDoc) pdfDoc.save("Nota-de-Signatura.pdf");
     }
 
-    function formatDateDMY(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-"); return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`; }
-
-    // ====== Autocompletar desde Google Sheets por Nº de convenio ======
-    // CONFIGURACIÓN:
-    // 1) Abrí la planilla y ponela como "Cualquiera con el vínculo – Lector".
-    // 2) (Opcional pero recomendado) Publicar en la web: Archivo -> Compartir -> Publicar en la Web (hoja actual).
-    // 3) Colocá los encabezados EXACTOS en la hoja: 
-    //    NumeroConvenio, NombreConvenio, Provincia, Vigencia, PrestadorEmail, 
-    //    Auxiliar, Referente, Subgerente, Firmante, CargoFirmante, CuerpoNota
-    // 4) Si tu hoja no es la primera, actualizá el GID abajo.
-
-    const SHEET_ID = "1NGZlomsY4L-HJOWXIxMJ4gCVlX1hKmQdencGX6DXh5o"; // tu ID
-    const SHEET_GID = ""; // si sabés el gid, ponelo (ej: "0"). Si lo dejás vacío, toma la primera hoja.
-    function gvizURL(){
-      const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
-      return SHEET_GID ? `${base}&gid=${SHEET_GID}` : base;
-    }
+    // ====== AUTOCOMPLETAR DESDE SHEETS ======
+    const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTtwmE86YOrUU_3zaUAY2mXfwGrxe3f3sUdoI3ckQfj0cs3D1R46SzXH4tStGBiaVe6PiQFIR5DQ_U0/pub?gid=0&single=true&output=csv";
 
     async function buscarDesdeSheets(){
-      const numeroQuery = (document.getElementById('numeroConvenioLookup').value || "").trim();
-      if (!numeroQuery){ alert("Escribí un Nº de convenio para buscar."); return; }
-      try{
-        const url = gvizURL();
-        const res = await fetch(url);
-        const txt = await res.text();
-        // Quita envoltura de gviz
-        const json = JSON.parse(txt.replace(/^[^{]+/, '').replace(/;?\s*$/, ''));
-        // Mapea columnas por etiqueta
-        const cols = json.table.cols.map(c => (c && c.label) ? c.label : "");
-        const rows = json.table.rows;
+      const numero = (document.getElementById("numeroConvenioLookup").value || "").trim();
+      if(!numero){ alert("Ingresá un número de convenio"); return; }
 
-        // Busca coincidencia por NumeroConvenio (normalizando)
-        const norm = s => (s||"").toString().trim().replace(/\s+/g,' ');
-        let found = null;
-        for (const r of rows){
-          const obj = {};
-          r.c.forEach((cell, i)=>{ obj[cols[i]] = cell ? cell.v : ""; });
-          if (norm(obj.NumeroConvenio) === norm(numeroQuery)){ found = obj; break; }
-        }
-        if (!found){ alert("No se encontró ese Nº de convenio en la planilla."); return; }
+      const res = await fetch(SHEET_CSV);
+      const csv = await res.text();
+      const data = Papa.parse(csv, {header:true}).data;
 
-        // Completa el formulario
-        setIf("numeroConvenio", found.NumeroConvenio);
-        setIf("nombreConvenio", found.NombreConvenio);
-        setIf("provincia", found.Provincia);
-        if (found.Vigencia){ document.getElementById("vigencia").value = toISO(found.Vigencia); }
-        setIf("prestadorEmail", found.PrestadorEmail);
-        setIf("auxiliar", found.Auxiliar);
-        setIf("referente", found.Referente);
-        setIf("subgerente", found.Subgerente);
-        setIf("firmante", found.Firmante);
-        setIf("cargoFirmante", found.CargoFirmante);
-        if (found.CuerpoNota){ document.getElementById("cuerpoNota").value = found.CuerpoNota; }
-        alert("Datos completados desde la planilla ✔");
+      const match = data.find(r => String(r.NumeroConvenio).trim() === numero);
+      if(!match){ alert("No se encontró ese número en la hoja"); return; }
 
-      }catch(e){
-        console.error(e);
-        alert("No pude leer la planilla. Asegurate de que tenga acceso público (lector) o publicada en la web.");
-      }
-    }
-    function setIf(id, v){ if (v) document.getElementById(id).value = v; }
-    function toISO(dmy){
-      // soporta dd/mm/aaaa
-      const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(dmy));
-      if (m){ const [_, d, mth, y] = m; return `${y}-${String(mth).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
-      return ""; // si no matchea, lo dejamos vacío
+      const map = {
+        numeroConvenio:"NumeroConvenio",
+        nombreConvenio:"NombreConvenio",
+        provincia:"Provincia",
+        vigencia:"Vigencia",
+        prestadorEmail:"PrestadorEmail",
+        auxiliar:"Auxiliar",
+        referente:"Referente",
+        subgerente:"Subgerente",
+        firmante:"Firmante",
+        cargoFirmante:"CargoFirmante",
+        cuerpoNota:"CuerpoNota"
+      };
+      Object.entries(map).forEach(([id,key])=>{
+        if(match[key]) document.getElementById(id).value = match[key];
+      });
+
+      alert("✔ Datos completados desde la hoja");
     }
   </script>
 </body>
