@@ -135,14 +135,16 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
-    // ====== IMÁGENES (sin límites ni CORS) ======
-    // 1) Primero intenta cargar desde TU GitHub Pages (mismo origen del sitio)
+    // ========== IMÁGENES con fallback (SIN 429) ==========
     const PAGES_BASE = "https://conveniosjerarquicos.github.io/nota-signatura";
-    const HEADER_URL_PRIMARY = `${PAGES_BASE}/membrete.png?v=${Date.now()}`;
-    const FOOTER_URL_PRIMARY = `${PAGES_BASE}/pie.png?v=${Date.now()}`;
-    // 2) Si falla, usa jsDelivr como respaldo
-    const HEADER_URL_FALLBACK = "https://cdn.jsdelivr.net/gh/conveniosjerarquicos/nota-signatura@main/membrete.png";
-    const FOOTER_URL_FALLBACK = "https://cdn.jsdelivr.net/gh/conveniosjerarquicos/nota-signatura@main/pie.png";
+    const HEADER_URLS = [
+      `${PAGES_BASE}/membrete.png?v=${Date.now()}`,
+      "https://cdn.jsdelivr.net/gh/conveniosjerarquicos/nota-signatura@main/membrete.png"
+    ];
+    const FOOTER_URLS = [
+      `${PAGES_BASE}/pie.png?v=${Date.now()}`,
+      "https://cdn.jsdelivr.net/gh/conveniosjerarquicos/nota-signatura@main/pie.png"
+    ];
 
     // --- Config página ---
     const PAGE_W = 210, PAGE_H = 297;
@@ -152,7 +154,7 @@
     // Membrete/Pie dentro de márgenes
     const HEADER_MAX_H = 14;
     const FOOTER_MAX_H = 12;
-    let headerDataURL = null, footerDataURL = null;
+    let headerImg = null, footerImg = null;
     let headerH = 10, footerH = 10;
 
     // Espaciados
@@ -166,38 +168,55 @@
       document.getElementById('clonaBox').style.display = (v === 'SI') ? 'block' : 'none';
     }
 
-    // ===== Helpers de carga con fallback =====
-    async function fetchAsDataURL(url){
-      const r = await fetch(url, { mode: "cors", cache: "no-store" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const b = await r.blob();
-      return await new Promise(res => { const fr = new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(b); });
+    // ===== Helpers =====
+    function loadImage(url){
+      return new Promise((resolve, reject)=>{
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("No se pudo cargar " + url));
+        img.src = url;
+      });
     }
-    async function loadWithFallback(primary, fallback){
-      try { return await fetchAsDataURL(primary); }
-      catch { try { return await fetchAsDataURL(fallback); } catch { return null; } }
+    async function loadFirstAvailable(urls){
+      for (const u of urls){
+        try { return await loadImage(u); } catch(e) { /* sigue al siguiente */ }
+      }
+      return null;
     }
     async function ensureHeaderFooterLoaded(){
-      if (!headerDataURL) headerDataURL = await loadWithFallback(HEADER_URL_PRIMARY, HEADER_URL_FALLBACK);
-      if (!footerDataURL) footerDataURL = await loadWithFallback(FOOTER_URL_PRIMARY, FOOTER_URL_FALLBACK);
+      if (!headerImg) headerImg = await loadFirstAvailable(HEADER_URLS);
+      if (!footerImg) footerImg = await loadFirstAvailable(FOOTER_URLS);
 
-      async function measure(dataURL){
-        if(!dataURL) return null;
-        return await new Promise(res=>{ const img=new Image(); img.onload=()=>res({w:img.width,h:img.height}); img.onerror=()=>res(null); img.src=dataURL; });
+      if (headerImg){
+        headerH = Math.min(CONTENT_W * (headerImg.naturalHeight / headerImg.naturalWidth), HEADER_MAX_H);
       }
-      const hs = await measure(headerDataURL);
-      if (hs && hs.w) headerH = Math.min(CONTENT_W * (hs.h/hs.w), HEADER_MAX_H);
-      const fs = await measure(footerDataURL);
-      if (fs && fs.w) footerH = Math.min(CONTENT_W * (fs.h/fs.w), FOOTER_MAX_H);
+      if (footerImg){
+        footerH = Math.min(CONTENT_W * (footerImg.naturalHeight / footerImg.naturalWidth), FOOTER_MAX_H);
+      }
     }
+
     function addHeaderFooter(doc){
-      if (headerDataURL) doc.addImage(headerDataURL, "PNG", MARGIN_X, 10, CONTENT_W, headerH);
-      if (footerDataURL) doc.addImage(footerDataURL, "PNG", MARGIN_X, PAGE_H - footerH - 8, CONTENT_W, footerH);
+      if (headerImg){
+        doc.addImage(headerImg, "PNG", MARGIN_X, 10, CONTENT_W, headerH);
+      } else {
+        // marco de referencia si no carga
+        doc.setDrawColor(200); doc.rect(MARGIN_X, 10, CONTENT_W, HEADER_MAX_H);
+      }
+      if (footerImg){
+        doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - footerH - 8, CONTENT_W, footerH);
+      } else {
+        doc.setDrawColor(200); doc.rect(MARGIN_X, PAGE_H - FOOTER_MAX_H - 8, CONTENT_W, FOOTER_MAX_H);
+      }
     }
-    function topY(){ return 10 + (headerDataURL ? headerH : 0) + 12; }
-    function bottomY(){ return PAGE_H - (footerDataURL ? footerH : 0) - 16; }
+
+    function topY(){ return 10 + (headerImg ? headerH : HEADER_MAX_H) + 12; }
+    function bottomY(){ return PAGE_H - (footerImg ? footerH : FOOTER_MAX_H) - 16; }
+
     function ensureSpace(doc, needed, yRef){
-      if (yRef.value + needed > bottomY()){ doc.addPage(); addHeaderFooter(doc); yRef.value = topY(); }
+      if (yRef.value + needed > bottomY()){
+        doc.addPage(); addHeaderFooter(doc); yRef.value = topY();
+      }
     }
 
     // Texto a una columna
@@ -307,7 +326,7 @@
 
       } catch (err) {
         console.error(err);
-        alert("Error generando el PDF. Probá recargar la página. Si persiste, avisame.");
+        alert("Error generando el PDF. Si vuelve a pasar, avisame y lo corrijo.");
       }
     }
 
