@@ -20,9 +20,15 @@
     .section h3{margin:0 0 10px;font-size:16px;color:#1f2937}
     .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:700;background:#6366f1;color:#fff;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(99,102,241,.25);transition:transform .15s}
     .btn:hover{transform:translateY(-1px)}
+    .btn-secondary{background:#111827}
     .preview{margin-top:18px;display:none}
     .note{font-size:12px;color:#6b7280;margin-top:8px}
-    @media (max-width:760px){.grid{grid-template-columns:1fr}}
+    .row-inline{display:flex;gap:12px;align-items:flex-end}
+    .row-inline > div{flex:1}
+    #richArea{min-height:140px;border:1.8px dashed #cbd5e1;border-radius:10px;padding:12px;background:#fff}
+    #richArea:focus{outline:none;border-color:#6366f1}
+    .hint{font-size:12px;color:#6b7280;margin-top:6px}
+    @media (max-width:760px){.grid{grid-template-columns:1fr}.row-inline{flex-direction:column}}
   </style>
 </head>
 <body>
@@ -33,15 +39,23 @@
     <!-- DATOS -->
     <div class="section">
       <h3>Datos del Convenio</h3>
-      <div class="grid">
+
+      <div class="row-inline">
         <div>
-          <label>Fecha</label>
-          <input type="date" id="fecha">
+          <label>Fecha (automática)</label>
+          <input type="date" id="fecha" readonly>
         </div>
         <div>
-          <label>Provincia</label>
-          <input type="text" id="provincia" placeholder="Ej: Santa Fe">
+          <label>Nº de convenio (para autocompletar)</label>
+          <div class="row-inline">
+            <input type="text" id="numeroConvenioLookup" placeholder="Ej: 260/75">
+            <button class="btn btn-secondary" style="width:auto" onclick="buscarDesdeSheets()">Buscar</button>
+          </div>
+          <div class="hint">Escribí el número y tocá “Buscar” para completar el formulario</div>
         </div>
+      </div>
+
+      <div class="grid" style="margin-top:10px">
         <div class="full">
           <label>Nombre del Convenio</label>
           <input type="text" id="nombreConvenio" placeholder="Ej: Convenio Colectivo de Trabajo - Industria...">
@@ -50,9 +64,13 @@
           <label>Número de Convenio</label>
           <input type="text" id="numeroConvenio" placeholder="Ej: 260/75">
         </div>
-        <div class="full">
+        <div>
+          <label>Provincia</label>
+          <input type="text" id="provincia" placeholder="Ej: Santa Fe">
+        </div>
+        <div>
           <label>Vigencia</label>
-          <input type="text" id="vigencia" placeholder="Ej: 01/09/2025">
+          <input type="date" id="vigencia">
         </div>
         <div class="full">
           <label>Correo del Convenio (prestador)</label>
@@ -66,7 +84,22 @@
       <h3>Cuerpo de la Nota</h3>
       <div>
         <label>Texto</label>
-        <textarea id="cuerpoNota" placeholder="Escriba el contenido principal de la nota..."></textarea>
+        <textarea id="cuerpoNota">Por medio del presente se acuerda </textarea>
+      </div>
+    </div>
+
+    <!-- ADJUNTOS -->
+    <div class="section">
+      <h3>Adjuntos (imágenes / tabla)</h3>
+      <div class="row-inline">
+        <div class="full">
+          <label>Área para pegar (Ctrl+V) imágenes o tablas</label>
+          <div id="richArea" contenteditable="true" placeholder="Pegá acá imágenes o una tabla"></div>
+          <div class="hint">Podés pegar una grilla desde Excel/Sheets o imágenes; también podés subir archivos.</div>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <input type="file" id="imgInput" accept="image/*" multiple>
       </div>
     </div>
 
@@ -131,11 +164,12 @@
     </div>
   </div>
 
-  <!-- jsPDF -->
+  <!-- jsPDF + AutoTable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
   <script>
-    // ========== IMÁGENES con fallback (SIN 429) ==========
+    // ====== IMÁGENES (sin 429) ======
     const PAGES_BASE = "https://conveniosjerarquicos.github.io/nota-signatura";
     const HEADER_URLS = [
       `${PAGES_BASE}/membrete.png?v=${Date.now()}`,
@@ -147,28 +181,25 @@
     ];
 
     // --- Config página ---
-    const PAGE_W = 210, PAGE_H = 297;
-    const MARGIN_X = 20;
-    const CONTENT_W = PAGE_W - MARGIN_X * 2;
+    const PAGE_W = 210, PAGE_H = 297, MARGIN_X = 20, CONTENT_W = PAGE_W - MARGIN_X * 2;
+    const HEADER_MAX_H = 14, FOOTER_MAX_H = 12;
+    let headerImg=null, footerImg=null, headerH=10, footerH=10;
 
-    // Membrete/Pie dentro de márgenes
-    const HEADER_MAX_H = 14;
-    const FOOTER_MAX_H = 12;
-    let headerImg = null, footerImg = null;
-    let headerH = 10, footerH = 10;
-
-    // Espaciados
-    const GAP_AFTER_HEADER  = 14;
-    const GAP_AFTER_BODY    = 18;
-    const GAP_BETWEEN_SIGS  = 10;
-    const GAP_TO_FOOT_NOTES = 18;
+    const GAP_AFTER_HEADER=14, GAP_AFTER_BODY=18, GAP_BETWEEN_SIGS=10, GAP_TO_FOOT_NOTES=18;
 
     function toggleClona(){
       const v = document.getElementById('clona').value;
       document.getElementById('clonaBox').style.display = (v === 'SI') ? 'block' : 'none';
     }
 
-    // ===== Helpers =====
+    // ====== Fecha automática (hoy) ======
+    (function setToday(){
+      const d = new Date();
+      const iso = d.toISOString().slice(0,10); // yyyy-mm-dd
+      document.getElementById('fecha').value = iso;
+    })();
+
+    // ====== Carga de imágenes en memoria ======
     function loadImage(url){
       return new Promise((resolve, reject)=>{
         const img = new Image();
@@ -180,46 +211,83 @@
     }
     async function loadFirstAvailable(urls){
       for (const u of urls){
-        try { return await loadImage(u); } catch(e) { /* sigue al siguiente */ }
+        try { return await loadImage(u); } catch(e) {}
       }
       return null;
     }
     async function ensureHeaderFooterLoaded(){
       if (!headerImg) headerImg = await loadFirstAvailable(HEADER_URLS);
       if (!footerImg) footerImg = await loadFirstAvailable(FOOTER_URLS);
-
-      if (headerImg){
-        headerH = Math.min(CONTENT_W * (headerImg.naturalHeight / headerImg.naturalWidth), HEADER_MAX_H);
-      }
-      if (footerImg){
-        footerH = Math.min(CONTENT_W * (footerImg.naturalHeight / footerImg.naturalWidth), FOOTER_MAX_H);
-      }
+      if (headerImg) headerH = Math.min(CONTENT_W * (headerImg.naturalHeight/headerImg.naturalWidth), HEADER_MAX_H);
+      if (footerImg) footerH = Math.min(CONTENT_W * (footerImg.naturalHeight/footerImg.naturalWidth), FOOTER_MAX_H);
     }
-
     function addHeaderFooter(doc){
-      if (headerImg){
-        doc.addImage(headerImg, "PNG", MARGIN_X, 10, CONTENT_W, headerH);
-      } else {
-        // marco de referencia si no carga
-        doc.setDrawColor(200); doc.rect(MARGIN_X, 10, CONTENT_W, HEADER_MAX_H);
-      }
-      if (footerImg){
-        doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - footerH - 8, CONTENT_W, footerH);
-      } else {
-        doc.setDrawColor(200); doc.rect(MARGIN_X, PAGE_H - FOOTER_MAX_H - 8, CONTENT_W, FOOTER_MAX_H);
-      }
+      if (headerImg) doc.addImage(headerImg, "PNG", MARGIN_X, 10, CONTENT_W, headerH);
+      if (footerImg) doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - footerH - 8, CONTENT_W, footerH);
     }
-
     function topY(){ return 10 + (headerImg ? headerH : HEADER_MAX_H) + 12; }
     function bottomY(){ return PAGE_H - (footerImg ? footerH : FOOTER_MAX_H) - 16; }
-
     function ensureSpace(doc, needed, yRef){
-      if (yRef.value + needed > bottomY()){
-        doc.addPage(); addHeaderFooter(doc); yRef.value = topY();
-      }
+      if (yRef.value + needed > bottomY()){ doc.addPage(); addHeaderFooter(doc); yRef.value = topY(); }
     }
 
-    // Texto a una columna
+    // ====== Área de adjuntos: pegar imágenes/tablas ======
+    const imagesData = []; // {dataURL, w, h}
+    const tablesHTML = []; // arrays 2D
+
+    document.getElementById('imgInput').addEventListener('change', async (e)=>{
+      for (const f of e.target.files){
+        const dataURL = await fileToDataURL(f);
+        const dim = await measureDataURL(dataURL);
+        imagesData.push({dataURL, ...dim});
+      }
+      alert("Imágenes cargadas: " + imagesData.length);
+    });
+
+    document.getElementById('richArea').addEventListener('paste', async (e)=>{
+      const cd = e.clipboardData;
+      if (!cd) return;
+
+      // 1) Imágenes desde el portapapeles
+      for (const item of cd.items){
+        if (item.type.indexOf("image") === 0){
+          const f = item.getAsFile();
+          const dataURL = await fileToDataURL(f);
+          const dim = await measureDataURL(dataURL);
+          imagesData.push({dataURL, ...dim});
+        }
+      }
+
+      // 2) Tablas HTML pegadas
+      const html = cd.getData("text/html");
+      if (html && html.includes("<table")){
+        const div = document.createElement("div");
+        div.innerHTML = html;
+        const tbl = div.querySelector("table");
+        if (tbl){
+          const rows = [...tbl.rows].map(r => [...r.cells].map(c => c.innerText.trim()));
+          tablesHTML.push(rows);
+        }
+      }
+      // Dejamos que el navegador pegue visualmente en el div.
+    });
+
+    function fileToDataURL(file){
+      return new Promise(res=>{
+        const fr = new FileReader();
+        fr.onload = ()=>res(fr.result);
+        fr.readAsDataURL(file);
+      });
+    }
+    function measureDataURL(dataURL){
+      return new Promise(res=>{
+        const img = new Image();
+        img.onload = ()=>res({w:img.width, h:img.height});
+        img.src = dataURL;
+      });
+    }
+
+    // ====== Texto helpers ======
     function textBlock(doc, value, width, yRef, opt={}){
       const { fontSize=12, lineH=5.4, align="left", before=0, after=4, bold=false } = opt;
       const v = (value || "").toString().trim(); if (!v) return;
@@ -229,7 +297,6 @@
       ensureSpace(doc, h, yRef); doc.text(lines, MARGIN_X, yRef.value, { align });
       yRef.value += h + after;
     }
-    // Texto posicionable (para columnas)
     function textBlockAt(doc, value, x, width, yRef, opt={}){
       const { fontSize=12, lineH=5.4, bold=false, before=0, after=4 } = opt;
       const v = (value || "").toString().trim(); if(!v) return;
@@ -240,7 +307,7 @@
       doc.text(lines, x, yRef.value); yRef.value += h + after;
     }
 
-    // ====== Generación ======
+    // ====== PDF ======
     let pdfDoc = null;
 
     async function generarPDF(){
@@ -251,12 +318,11 @@
         await ensureHeaderFooterLoaded();
         addHeaderFooter(doc);
 
-        // Datos
-        const fecha          = (()=>{const v=document.getElementById('fecha').value; if(!v) return ""; const [y,m,d]=v.split("-"); return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`;})();
+        const fecha          = formatDateDMY(document.getElementById('fecha').value);
         const provincia      = document.getElementById('provincia').value;
         const nombreConvenio = document.getElementById('nombreConvenio').value;
         const numeroConvenio = document.getElementById('numeroConvenio').value;
-        const vigencia       = document.getElementById('vigencia').value;
+        const vigencia       = formatDateDMY(document.getElementById('vigencia').value);
         const prestadorEmail = document.getElementById('prestadorEmail').value;
 
         const cuerpoNota     = document.getElementById('cuerpoNota').value;
@@ -271,7 +337,6 @@
         const conveniosClona = document.getElementById('conveniosClona').value;
         const numerosTA      = document.getElementById('numerosTA').value;
 
-        // === Carta ===
         let y = { value: topY() };
 
         // Encabezado
@@ -291,23 +356,37 @@
         // Cuerpo
         textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:GAP_AFTER_BODY});
 
+        // Adjuntos: tablas
+        for (const rows of tablesHTML){
+          ensureSpace(doc, 20, y);
+          doc.autoTable({ startY: y.value, head: [rows[0]], body: rows.slice(1), styles:{fontSize:10}, theme:'grid', margin:{left:MARGIN_X, right:MARGIN_X} });
+          y.value = doc.lastAutoTable.finalY + 8;
+        }
+
+        // Adjuntos: imágenes (escala al ancho)
+        for (const img of imagesData){
+          const maxW = CONTENT_W, maxH = 100;
+          let w = maxW, h = w * (img.h/img.w);
+          if (h > maxH){ h = maxH; w = h * (img.w/img.h); }
+          ensureSpace(doc, h+6, y);
+          doc.addImage(img.dataURL, "PNG", MARGIN_X, y.value, w, h);
+          y.value += h + 8;
+        }
+
         // Firmas en 2 columnas
         const columnGap = 12, colW = (CONTENT_W - columnGap) / 2;
         const xLeft = MARGIN_X, xRight = MARGIN_X + colW + columnGap;
         let yLeft = { value: y.value }, yRight = { value: y.value };
 
-        // Jerárquicos
         textBlockAt(doc, "Por Jerárquicos Salud:", xLeft, colW, yLeft, {bold:true, fontSize:12, after:GAP_BETWEEN_SIGS});
         textBlockAt(doc, `${auxiliar} — Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
         textBlockAt(doc, `${referente} — Referente del Área Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
 
-        // Prestador
         textBlockAt(doc, "Por el Convenio:", xRight, colW, yRight, {bold:true, fontSize:12, after:GAP_BETWEEN_SIGS});
         const firmaConCargo = [firmante, cargoFirmante].filter(Boolean).join(" — ");
         textBlockAt(doc, firmaConCargo, xRight, colW, yRight, {fontSize:12, after:6});
         if (subgerente.trim()!==""){ textBlockAt(doc, `${subgerente} — Sub gerente`, xRight, colW, yRight, {fontSize:12, after:6}); }
 
-        // Continuar después de la columna más larga
         y.value = Math.max(yLeft.value, yRight.value) + GAP_TO_FOOT_NOTES;
 
         // CLONA / TA al pie (chico)
@@ -326,7 +405,7 @@
 
       } catch (err) {
         console.error(err);
-        alert("Error generando el PDF. Si vuelve a pasar, avisame y lo corrijo.");
+        alert("Error generando el PDF. Probá recargar la página.");
       }
     }
 
@@ -341,8 +420,73 @@
       }
     }
 
-    window.generarPDF = generarPDF;
-    window.descargarPDF = descargarPDF;
+    function formatDateDMY(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-"); return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`; }
+
+    // ====== Autocompletar desde Google Sheets por Nº de convenio ======
+    // CONFIGURACIÓN:
+    // 1) Abrí la planilla y ponela como "Cualquiera con el vínculo – Lector".
+    // 2) (Opcional pero recomendado) Publicar en la web: Archivo -> Compartir -> Publicar en la Web (hoja actual).
+    // 3) Colocá los encabezados EXACTOS en la hoja: 
+    //    NumeroConvenio, NombreConvenio, Provincia, Vigencia, PrestadorEmail, 
+    //    Auxiliar, Referente, Subgerente, Firmante, CargoFirmante, CuerpoNota
+    // 4) Si tu hoja no es la primera, actualizá el GID abajo.
+
+    const SHEET_ID = "1NGZlomsY4L-HJOWXIxMJ4gCVlX1hKmQdencGX6DXh5o"; // tu ID
+    const SHEET_GID = ""; // si sabés el gid, ponelo (ej: "0"). Si lo dejás vacío, toma la primera hoja.
+    function gvizURL(){
+      const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+      return SHEET_GID ? `${base}&gid=${SHEET_GID}` : base;
+    }
+
+    async function buscarDesdeSheets(){
+      const numeroQuery = (document.getElementById('numeroConvenioLookup').value || "").trim();
+      if (!numeroQuery){ alert("Escribí un Nº de convenio para buscar."); return; }
+      try{
+        const url = gvizURL();
+        const res = await fetch(url);
+        const txt = await res.text();
+        // Quita envoltura de gviz
+        const json = JSON.parse(txt.replace(/^[^{]+/, '').replace(/;?\s*$/, ''));
+        // Mapea columnas por etiqueta
+        const cols = json.table.cols.map(c => (c && c.label) ? c.label : "");
+        const rows = json.table.rows;
+
+        // Busca coincidencia por NumeroConvenio (normalizando)
+        const norm = s => (s||"").toString().trim().replace(/\s+/g,' ');
+        let found = null;
+        for (const r of rows){
+          const obj = {};
+          r.c.forEach((cell, i)=>{ obj[cols[i]] = cell ? cell.v : ""; });
+          if (norm(obj.NumeroConvenio) === norm(numeroQuery)){ found = obj; break; }
+        }
+        if (!found){ alert("No se encontró ese Nº de convenio en la planilla."); return; }
+
+        // Completa el formulario
+        setIf("numeroConvenio", found.NumeroConvenio);
+        setIf("nombreConvenio", found.NombreConvenio);
+        setIf("provincia", found.Provincia);
+        if (found.Vigencia){ document.getElementById("vigencia").value = toISO(found.Vigencia); }
+        setIf("prestadorEmail", found.PrestadorEmail);
+        setIf("auxiliar", found.Auxiliar);
+        setIf("referente", found.Referente);
+        setIf("subgerente", found.Subgerente);
+        setIf("firmante", found.Firmante);
+        setIf("cargoFirmante", found.CargoFirmante);
+        if (found.CuerpoNota){ document.getElementById("cuerpoNota").value = found.CuerpoNota; }
+        alert("Datos completados desde la planilla ✔");
+
+      }catch(e){
+        console.error(e);
+        alert("No pude leer la planilla. Asegurate de que tenga acceso público (lector) o publicada en la web.");
+      }
+    }
+    function setIf(id, v){ if (v) document.getElementById(id).value = v; }
+    function toISO(dmy){
+      // soporta dd/mm/aaaa
+      const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(dmy));
+      if (m){ const [_, d, mth, y] = m; return `${y}-${String(mth).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+      return ""; // si no matchea, lo dejamos vacío
+    }
   </script>
 </body>
 </html>
