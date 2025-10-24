@@ -54,6 +54,10 @@
           <label>Vigencia</label>
           <input type="text" id="vigencia" placeholder="Ej: 01/09/2025">
         </div>
+        <div class="full">
+          <label>Correo del Convenio (prestador)</label>
+          <input type="email" id="prestadorEmail" placeholder="ejemplo@dominio.com">
+        </div>
       </div>
     </div>
 
@@ -89,10 +93,6 @@
         <div>
           <label>Cargo del Firmante del Convenio</label>
           <input type="text" id="cargoFirmante" placeholder="Ej: Director, Presidente, etc.">
-        </div>
-        <div class="full">
-          <label>Correo electrónico del convenio (prestador)</label>
-          <input type="email" id="prestadorEmail" placeholder="ejemplo@dominio.com">
         </div>
       </div>
     </div>
@@ -135,11 +135,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
-    // 🔗 PONÉ TUS URLs RAW (formato correcto):
-    // https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/membrete.png
-    // https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/pie.png
-    const HEADER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/membrete.png";
-    const FOOTER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/pie.png";
+    // ====== IMÁGENES (sin límites ni CORS) ======
+    // 1) Primero intenta cargar desde TU GitHub Pages (mismo origen del sitio)
+    const PAGES_BASE = "https://conveniosjerarquicos.github.io/nota-signatura";
+    const HEADER_URL_PRIMARY = `${PAGES_BASE}/membrete.png?v=${Date.now()}`;
+    const FOOTER_URL_PRIMARY = `${PAGES_BASE}/pie.png?v=${Date.now()}`;
+    // 2) Si falla, usa jsDelivr como respaldo
+    const HEADER_URL_FALLBACK = "https://cdn.jsdelivr.net/gh/conveniosjerarquicos/nota-signatura@main/membrete.png";
+    const FOOTER_URL_FALLBACK = "https://cdn.jsdelivr.net/gh/conveniosjerarquicos/nota-signatura@main/pie.png";
 
     // --- Config página ---
     const PAGE_W = 210, PAGE_H = 297;
@@ -163,97 +166,62 @@
       document.getElementById('clonaBox').style.display = (v === 'SI') ? 'block' : 'none';
     }
 
-    // Helpers -----------------------------------------------------
-    function formatDateDMY(iso) {
-      if (!iso) return "";
-      const [y, m, d] = iso.split("-");
-      return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`;
+    // ===== Helpers de carga con fallback =====
+    async function fetchAsDataURL(url){
+      const r = await fetch(url, { mode: "cors", cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const b = await r.blob();
+      return await new Promise(res => { const fr = new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(b); });
     }
-
-    async function toDataURL(url){
-      try{
-        const r = await fetch(url, {mode:'cors'});
-        if(!r.ok) throw new Error(r.status);
-        const b = await r.blob();
-        return await new Promise(res => {
-          const fr = new FileReader();
-          fr.onload = () => res(fr.result);
-          fr.readAsDataURL(b);
-        });
-      }catch(e){
-        console.warn("No se pudo cargar imagen:", url, e);
-        return null;
-      }
+    async function loadWithFallback(primary, fallback){
+      try { return await fetchAsDataURL(primary); }
+      catch { try { return await fetchAsDataURL(fallback); } catch { return null; } }
     }
-
     async function ensureHeaderFooterLoaded(){
-      if (!headerDataURL) headerDataURL = await toDataURL(HEADER_URL);
-      if (!footerDataURL) footerDataURL = await toDataURL(FOOTER_URL);
+      if (!headerDataURL) headerDataURL = await loadWithFallback(HEADER_URL_PRIMARY, HEADER_URL_FALLBACK);
+      if (!footerDataURL) footerDataURL = await loadWithFallback(FOOTER_URL_PRIMARY, FOOTER_URL_FALLBACK);
 
       async function measure(dataURL){
         if(!dataURL) return null;
-        return await new Promise(res=>{
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => res({w: img.width, h: img.height});
-          img.onerror = () => res(null);
-          img.src = dataURL;
-        });
+        return await new Promise(res=>{ const img=new Image(); img.onload=()=>res({w:img.width,h:img.height}); img.onerror=()=>res(null); img.src=dataURL; });
       }
       const hs = await measure(headerDataURL);
       if (hs && hs.w) headerH = Math.min(CONTENT_W * (hs.h/hs.w), HEADER_MAX_H);
-
       const fs = await measure(footerDataURL);
       if (fs && fs.w) footerH = Math.min(CONTENT_W * (fs.h/fs.w), FOOTER_MAX_H);
     }
-
     function addHeaderFooter(doc){
       if (headerDataURL) doc.addImage(headerDataURL, "PNG", MARGIN_X, 10, CONTENT_W, headerH);
       if (footerDataURL) doc.addImage(footerDataURL, "PNG", MARGIN_X, PAGE_H - footerH - 8, CONTENT_W, footerH);
     }
-
     function topY(){ return 10 + (headerDataURL ? headerH : 0) + 12; }
     function bottomY(){ return PAGE_H - (footerDataURL ? footerH : 0) - 16; }
-
     function ensureSpace(doc, needed, yRef){
-      if (yRef.value + needed > bottomY()){
-        doc.addPage(); addHeaderFooter(doc); yRef.value = topY();
-      }
+      if (yRef.value + needed > bottomY()){ doc.addPage(); addHeaderFooter(doc); yRef.value = topY(); }
     }
 
     // Texto a una columna
     function textBlock(doc, value, width, yRef, opt={}){
       const { fontSize=12, lineH=5.4, align="left", before=0, after=4, bold=false } = opt;
-      const v = (value || "").toString().trim();
-      if (!v) return;
+      const v = (value || "").toString().trim(); if (!v) return;
       yRef.value += before;
-      doc.setFont(undefined, bold ? "bold" : "normal");
-      doc.setFontSize(fontSize);
-      const lines = doc.splitTextToSize(v, width);
-      const h = lines.length * lineH + 1;
-      ensureSpace(doc, h, yRef);
-      doc.text(lines, MARGIN_X, yRef.value, { align });
+      doc.setFont(undefined, bold ? "bold" : "normal"); doc.setFontSize(fontSize);
+      const lines = doc.splitTextToSize(v, width); const h = lines.length * lineH + 1;
+      ensureSpace(doc, h, yRef); doc.text(lines, MARGIN_X, yRef.value, { align });
       yRef.value += h + after;
     }
-
     // Texto posicionable (para columnas)
     function textBlockAt(doc, value, x, width, yRef, opt={}){
       const { fontSize=12, lineH=5.4, bold=false, before=0, after=4 } = opt;
       const v = (value || "").toString().trim(); if(!v) return;
       yRef.value += before;
-      const lines = doc.splitTextToSize(v, width);
-      const h = lines.length * lineH + 1;
-      if (yRef.value + h > bottomY()){
-        doc.addPage(); addHeaderFooter(doc);
-        yRef.value = topY();
-      }
-      doc.setFont(undefined, bold ? "bold" : "normal");
-      doc.setFontSize(fontSize);
-      doc.text(lines, x, yRef.value);
-      yRef.value += h + after;
+      const lines = doc.splitTextToSize(v, width); const h = lines.length * lineH + 1;
+      if (yRef.value + h > bottomY()){ doc.addPage(); addHeaderFooter(doc); yRef.value = topY(); }
+      doc.setFont(undefined, bold ? "bold" : "normal"); doc.setFontSize(fontSize);
+      doc.text(lines, x, yRef.value); yRef.value += h + after;
     }
 
-    // -------------------------------------------------------------
+    // ====== Generación ======
     let pdfDoc = null;
 
     async function generarPDF(){
@@ -264,12 +232,13 @@
         await ensureHeaderFooterLoaded();
         addHeaderFooter(doc);
 
-        // Captura del formulario
-        const fecha          = formatDateDMY(document.getElementById('fecha').value);
+        // Datos
+        const fecha          = (()=>{const v=document.getElementById('fecha').value; if(!v) return ""; const [y,m,d]=v.split("-"); return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`;})();
         const provincia      = document.getElementById('provincia').value;
         const nombreConvenio = document.getElementById('nombreConvenio').value;
         const numeroConvenio = document.getElementById('numeroConvenio').value;
         const vigencia       = document.getElementById('vigencia').value;
+        const prestadorEmail = document.getElementById('prestadorEmail').value;
 
         const cuerpoNota     = document.getElementById('cuerpoNota').value;
 
@@ -278,30 +247,24 @@
         const subgerente     = document.getElementById('subgerente').value;
         const firmante       = document.getElementById('firmante').value;
         const cargoFirmante  = document.getElementById('cargoFirmante').value;
-        const prestadorEmail = document.getElementById('prestadorEmail').value;
 
         const clona          = document.getElementById('clona').value;
         const conveniosClona = document.getElementById('conveniosClona').value;
         const numerosTA      = document.getElementById('numerosTA').value;
 
-        // === Composición tipo carta ===
+        // === Carta ===
         let y = { value: topY() };
 
-        // Encabezado (fecha y datos)
+        // Encabezado
         textBlock(doc, fecha, CONTENT_W, y, {fontSize:12, after:6});
         textBlock(doc, nombreConvenio, CONTENT_W, y, {fontSize:12, after:2});
         textBlock(doc, `Convenio ${numeroConvenio} – ${provincia}`, CONTENT_W, y, {fontSize:12, after:2});
-        if ((prestadorEmail||"").trim()!==""){
-          textBlock(doc, prestadorEmail, CONTENT_W, y, {fontSize:11, after:GAP_AFTER_HEADER});
-        } else {
-          y.value += GAP_AFTER_HEADER;
-        }
+        if (prestadorEmail.trim()!==""){ textBlock(doc, prestadorEmail, CONTENT_W, y, {fontSize:11, after:GAP_AFTER_HEADER}); }
+        else { y.value += GAP_AFTER_HEADER; }
 
-        // separador suave
-        ensureSpace(doc, 6, y);
-        doc.setDrawColor(170); doc.setLineWidth(0.35);
-        doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
-        y.value += GAP_AFTER_HEADER;
+        // separador
+        ensureSpace(doc, 6, y); doc.setDrawColor(170); doc.setLineWidth(0.35);
+        doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value); y.value += GAP_AFTER_HEADER;
 
         // A quien corresponda
         textBlock(doc, "A quien corresponda:", CONTENT_W, y, {fontSize:12, bold:true, after:10});
@@ -309,35 +272,26 @@
         // Cuerpo
         textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:GAP_AFTER_BODY});
 
-        // ===== Firmantes en dos columnas =====
-        const columnGap = 12;
-        const colW = (CONTENT_W - columnGap) / 2;
-        const xLeft = MARGIN_X;
-        const xRight = MARGIN_X + colW + columnGap;
+        // Firmas en 2 columnas
+        const columnGap = 12, colW = (CONTENT_W - columnGap) / 2;
+        const xLeft = MARGIN_X, xRight = MARGIN_X + colW + columnGap;
+        let yLeft = { value: y.value }, yRight = { value: y.value };
 
-        let yLeft = { value: y.value };
-        let yRight = { value: y.value };
-
-        // Columna izquierda: Jerárquicos
+        // Jerárquicos
         textBlockAt(doc, "Por Jerárquicos Salud:", xLeft, colW, yLeft, {bold:true, fontSize:12, after:GAP_BETWEEN_SIGS});
         textBlockAt(doc, `${auxiliar} — Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
         textBlockAt(doc, `${referente} — Referente del Área Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
 
-        // Columna derecha: Prestador
+        // Prestador
         textBlockAt(doc, "Por el Convenio:", xRight, colW, yRight, {bold:true, fontSize:12, after:GAP_BETWEEN_SIGS});
-        // Nombre + Cargo en la misma línea
         const firmaConCargo = [firmante, cargoFirmante].filter(Boolean).join(" — ");
         textBlockAt(doc, firmaConCargo, xRight, colW, yRight, {fontSize:12, after:6});
+        if (subgerente.trim()!==""){ textBlockAt(doc, `${subgerente} — Sub gerente`, xRight, colW, yRight, {fontSize:12, after:6}); }
 
-        // (El correo ya va en el encabezado, no lo repetimos aquí)
-        if ((subgerente||"").trim()!==""){
-          textBlockAt(doc, `${subgerente} — Sub gerente`, xRight, colW, yRight, {fontSize:12, after:6});
-        }
-
-        // Continuamos desde el mayor Y de las dos columnas
+        // Continuar después de la columna más larga
         y.value = Math.max(yLeft.value, yRight.value) + GAP_TO_FOOT_NOTES;
 
-        // ===== CLONA y TA al pie =====
+        // CLONA / TA al pie (chico)
         if (clona === "SI" && (conveniosClona||"").trim()!==""){
           textBlock(doc, "CLONA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
           textBlock(doc, conveniosClona, CONTENT_W, y, {fontSize:10, lineH:4.6, after:8});
@@ -353,7 +307,7 @@
 
       } catch (err) {
         console.error(err);
-        alert("Hubo un error generando el PDF. Revisá la consola para más detalles.");
+        alert("Error generando el PDF. Probá recargar la página. Si persiste, avisame.");
       }
     }
 
