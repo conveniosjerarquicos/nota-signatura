@@ -1,202 +1,339 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script>
-  // 👉 URLs RAW de tus imágenes en GitHub
-  const HEADER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/membrete.png";
-  const FOOTER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/pie.png";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Generador de Nota de Signatura</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:#f2f4f8;margin:0;padding:24px}
+    .container{max-width:920px;margin:0 auto;background:#fff;padding:28px 24px;border-radius:16px;box-shadow:0 12px 40px rgba(16,24,40,.08)}
+    h1{margin:0 0 6px;text-align:center;color:#1f2937;font-size:26px}
+    .subtitle{margin:0 0 20px;text-align:center;color:#6b7280;font-size:14px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .full{grid-column:1 / -1}
+    label{display:block;font-weight:600;color:#111827;margin-bottom:6px;font-size:14px}
+    input,select,textarea{width:100%;padding:12px;border:1.8px solid #e5e7eb;border-radius:10px;font-size:15px;font-family:inherit;background:#fff;outline:none;transition:border-color .2s}
+    textarea{min-height:140px;resize:vertical}
+    input:focus,select:focus,textarea:focus{border-color:#6366f1}
+    .section{background:#f9fafb;border:1px solid #eef2f7;padding:16px;border-radius:12px;margin:18px 0}
+    .section h3{margin:0 0 10px;font-size:16px;color:#1f2937}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:700;background:#6366f1;color:#fff;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(99,102,241,.25);transition:transform .15s}
+    .btn:hover{transform:translateY(-1px)}
+    .preview{margin-top:18px;display:none}
+    .note{font-size:12px;color:#6b7280;margin-top:8px}
+    @media (max-width:760px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 Generador de Nota de Signatura</h1>
+    <p class="subtitle">Complete los campos y genere el PDF con membrete y pie institucional</p>
 
-  // --- Constantes de página ---
-  const PAGE_W = 210, PAGE_H = 297;      // A4 mm
-  const MARGIN_X = 20;
-  const CONTENT_W = PAGE_W - MARGIN_X * 2;
+    <!-- DATOS -->
+    <div class="section">
+      <h3>Datos del Convenio</h3>
+      <div class="grid">
+        <div>
+          <label>Fecha</label>
+          <input type="date" id="fecha">
+        </div>
+        <div>
+          <label>Provincia</label>
+          <input type="text" id="provincia" placeholder="Ej: Santa Fe">
+        </div>
+        <div class="full">
+          <label>Nombre del Convenio</label>
+          <input type="text" id="nombreConvenio" placeholder="Ej: Convenio Colectivo de Trabajo - Industria...">
+        </div>
+        <div class="full">
+          <label>Número de Convenio</label>
+          <input type="text" id="numeroConvenio" placeholder="Ej: 260/75">
+        </div>
+        <div class="full">
+          <label>Vigencia</label>
+          <input type="text" id="vigencia" placeholder="Ej: 01/09/2025">
+        </div>
+      </div>
+    </div>
 
-  // Membrete/Pie: dentro de márgenes y sin estirar
-  const HEADER_MAX_H = 14;
-  const FOOTER_MAX_H = 12;
-  let headerDataURL = null, footerDataURL = null;
-  let headerH = 10, footerH = 10;
+    <!-- CUERPO -->
+    <div class="section">
+      <h3>Cuerpo de la Nota</h3>
+      <div>
+        <label>Texto</label>
+        <textarea id="cuerpoNota" placeholder="Escriba el contenido principal de la nota..."></textarea>
+      </div>
+    </div>
 
-  // Espaciados grandes entre bloques
-  const GAP_AFTER_HEADER  = 14;  // encabezado → cuerpo
-  const GAP_AFTER_BODY    = 18;  // cuerpo → firmantes
-  const GAP_BETWEEN_SIGS  = 10;  // entre grupos de firmas
-  const GAP_TO_FOOT_NOTES = 18;  // firmantes → CLONA/TA
+    <!-- FIRMANTES -->
+    <div class="section">
+      <h3>Firmantes</h3>
+      <div class="grid">
+        <div>
+          <label>Nombre del Auxiliar</label>
+          <input type="text" id="auxiliar" placeholder="Nombre completo">
+        </div>
+        <div>
+          <label>Nombre del Referente</label>
+          <input type="text" id="referente" placeholder="Nombre completo">
+        </div>
+        <div class="full">
+          <label>Nombre del Subgerente (opcional)</label>
+          <input type="text" id="subgerente" placeholder="Dejar en blanco si no corresponde">
+        </div>
+        <div>
+          <label>Nombre del Firmante del Convenio</label>
+          <input type="text" id="firmante" placeholder="Nombre completo">
+        </div>
+        <div>
+          <label>Correo electrónico del Firmante</label>
+          <input type="email" id="firmanteEmail" placeholder="ejemplo@dominio.com">
+        </div>
+      </div>
+    </div>
 
-  // Helpers -----------------------------------------------------
-  function formatDateDMY(iso) {
-    // "yyyy-mm-dd" -> "dd/mm/aaaa"
-    if (!iso) return "";
-    const [y, m, d] = iso.split("-");
-    if (!y || !m || !d) return iso;
-    return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`;
-  }
+    <!-- CLONA -->
+    <div class="section">
+      <h3>CLONA</h3>
+      <div class="grid">
+        <div>
+          <label>¿Corresponde?</label>
+          <select id="clona" onchange="toggleClona()">
+            <option value="NO">NO</option>
+            <option value="SI">SI</option>
+          </select>
+        </div>
+        <div class="full" id="clonaBox" style="display:none;">
+          <label>Convenios relacionados (si corresponde)</label>
+          <textarea id="conveniosClona" placeholder="Ej: CCT 123/75, CCT 456/80"></textarea>
+        </div>
+      </div>
+    </div>
 
-  async function toDataURL(url){
-    // Más compatible: descarga y convierte a dataURL (evita CORS raros)
-    const r = await fetch(url, {mode: 'cors'});
-    const b = await r.blob();
-    return await new Promise(res => {
-      const fr = new FileReader();
-      fr.onload = () => res(fr.result);
-      fr.readAsDataURL(b);
-    });
-  }
+    <!-- TA -->
+    <div class="section">
+      <h3>TA (Tasa Acumulada)</h3>
+      <label>Números de TA</label>
+      <input type="text" id="numerosTA" placeholder="Ej: TA2024171; TA202517.99">
+    </div>
 
-  async function ensureHeaderFooterLoaded(){
-    // Carga una sola vez; si falla, seguimos sin membrete/pie
-    if (!headerDataURL) {
-      try { headerDataURL = await toDataURL(HEADER_URL); } catch(e) { console.warn("Header no cargó:", e); }
+    <button class="btn" onclick="generarPDF()">🔄 Generar PDF</button>
+    <div class="note">Se respeta el formato carta; “CLONA” y “TA” van al pie en tipografía más chica.</div>
+
+    <div class="preview" id="preview">
+      <p style="color:#10b981;font-weight:700;margin:10px 0 0">✅ Documento listo. Podés descargarlo:</p>
+      <button class="btn" style="background:#10b981;margin-top:8px" onclick="descargarPDF()">📥 Descargar PDF</button>
+    </div>
+  </div>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    // 👉 Reemplazá por tus URLs RAW (que abren directo)
+    const HEADER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/membrete.png";
+    const FOOTER_URL = "https://raw.githubusercontent.com/conveniosjerarquicos/nota-signatura/main/pie.png";
+
+    // --- Config página ---
+    const PAGE_W = 210, PAGE_H = 297;              // A4 mm
+    const MARGIN_X = 20;
+    const CONTENT_W = PAGE_W - MARGIN_X * 2;
+
+    // Membrete/Pie dentro de márgenes (escala proporcional, sin estirar)
+    const HEADER_MAX_H = 14;
+    const FOOTER_MAX_H = 12;
+    let headerDataURL = null, footerDataURL = null;
+    let headerH = 10, footerH = 10;
+
+    // Espaciados grandes entre bloques
+    const GAP_AFTER_HEADER  = 14;  // encabezado → cuerpo
+    const GAP_AFTER_BODY    = 18;  // cuerpo → firmantes
+    const GAP_BETWEEN_SIGS  = 10;  // entre grupos de firmas
+    const GAP_TO_FOOT_NOTES = 18;  // firmantes → CLONA/TA
+
+    function toggleClona(){
+      const v = document.getElementById('clona').value;
+      document.getElementById('clonaBox').style.display = (v === 'SI') ? 'block' : 'none';
     }
-    if (!footerDataURL) {
-      try { footerDataURL = await toDataURL(FOOTER_URL); } catch(e) { console.warn("Footer no cargó:", e); }
+
+    // Helpers -----------------------------------------------------
+    function formatDateDMY(iso) {
+      // "yyyy-mm-dd" -> "dd/mm/aaaa"
+      if (!iso) return "";
+      const [y, m, d] = iso.split("-");
+      if (!y || !m || !d) return iso;
+      return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`;
     }
 
-    // Calcular alto proporcional con las imágenes cargadas
-    function measure(dataURL){
-      return new Promise(res=>{
-        const img = new Image();
-        img.onload = () => res({w: img.width, h: img.height});
-        img.onerror = () => res(null);
-        img.src = dataURL;
-      });
+    async function toDataURL(url){
+      // Descarga y convierte a dataURL (evita CORS raros)
+      try{
+        const r = await fetch(url, {mode:'cors'});
+        if(!r.ok) throw new Error(r.status);
+        const b = await r.blob();
+        return await new Promise(res => {
+          const fr = new FileReader();
+          fr.onload = () => res(fr.result);
+          fr.readAsDataURL(b);
+        });
+      }catch(e){
+        console.warn("No se pudo cargar imagen:", url, e);
+        return null;
+      }
     }
 
-    if (headerDataURL) {
-      const s = await measure(headerDataURL);
-      if (s && s.w) headerH = Math.min(CONTENT_W * (s.h/s.w), HEADER_MAX_H);
-    }
-    if (footerDataURL) {
-      const s = await measure(footerDataURL);
-      if (s && s.w) footerH = Math.min(CONTENT_W * (s.h/s.w), FOOTER_MAX_H);
-    }
-  }
+    async function ensureHeaderFooterLoaded(){
+      // Carga una sola vez; si falla, seguimos sin membrete/pie
+      if (!headerDataURL) headerDataURL = await toDataURL(HEADER_URL);
+      if (!footerDataURL) footerDataURL = await toDataURL(FOOTER_URL);
 
-  function addHeaderFooter(doc){
-    if (headerDataURL) doc.addImage(headerDataURL, "PNG", MARGIN_X, 10, CONTENT_W, headerH);
-    if (footerDataURL) doc.addImage(footerDataURL, "PNG", MARGIN_X, PAGE_H - footerH - 8, CONTENT_W, footerH);
-  }
-
-  function topY(){ return 10 + (headerDataURL ? headerH : 0) + 12; }
-  function bottomY(){ return PAGE_H - (footerDataURL ? footerH : 0) - 16; }
-
-  function ensureSpace(doc, needed, yRef){
-    if (yRef.value + needed > bottomY()){
-      doc.addPage(); addHeaderFooter(doc); yRef.value = topY();
-    }
-  }
-
-  function textBlock(doc, value, width, yRef, opt={}){
-    const {
-      fontSize=12, lineH=5.4, align="left",
-      before=0, after=4, bold=false
-    } = opt;
-    const v = (value || "").toString().trim();
-    if (!v) return;
-    yRef.value += before;
-    doc.setFont(undefined, bold ? "bold" : "normal");
-    doc.setFontSize(fontSize);
-    const lines = doc.splitTextToSize(v, width);
-    const h = lines.length * lineH + 1;
-    ensureSpace(doc, h, yRef);
-    doc.text(lines, MARGIN_X, yRef.value, { align });
-    yRef.value += h + after;
-  }
-
-  // -------------------------------------------------------------
-
-  let pdfDoc = null;
-
-  async function generarPDF(){
-    try {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
-
-      // Aseguramos membrete/pie (sin bloquear si falla)
-      await ensureHeaderFooterLoaded();
-      addHeaderFooter(doc);
-
-      // Captura
-      const fecha          = formatDateDMY(document.getElementById('fecha').value);
-      const provincia      = document.getElementById('provincia').value;
-      const nombreConvenio = document.getElementById('nombreConvenio').value;
-      const numeroConvenio = document.getElementById('numeroConvenio').value;
-      const vigencia       = document.getElementById('vigencia').value;
-
-      const cuerpoNota     = document.getElementById('cuerpoNota').value;
-
-      const auxiliar       = document.getElementById('auxiliar').value;
-      const referente      = document.getElementById('referente').value;
-      const subgerente     = document.getElementById('subgerente').value;
-      const firmante       = document.getElementById('firmante').value;
-      const firmanteEmail  = document.getElementById('firmanteEmail').value;
-
-      const clona          = document.getElementById('clona').value;
-      const conveniosClona = document.getElementById('conveniosClona').value;
-      const numerosTA      = document.getElementById('numerosTA').value;
-
-      // Composición tipo carta + más espacio entre bloques
-      let y = { value: topY() };
-
-      // 1) Encabezado (fecha y datos)
-      textBlock(doc, fecha, CONTENT_W, y, {fontSize:12, after:6});
-      textBlock(doc, nombreConvenio, CONTENT_W, y, {fontSize:12, after:2});
-      textBlock(doc, `Convenio ${numeroConvenio} – ${provincia}`, CONTENT_W, y, {fontSize:12, after:GAP_AFTER_HEADER});
-
-      // separador suave
-      ensureSpace(doc, 6, y);
-      doc.setDrawColor(170); doc.setLineWidth(0.35);
-      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
-      y.value += GAP_AFTER_HEADER;
-
-      // 2) A quien corresponda
-      textBlock(doc, "A quien corresponda:", CONTENT_W, y, {fontSize:12, bold:true, after:10});
-
-      // 3) Cuerpo (párrafos)
-      textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:GAP_AFTER_BODY});
-
-      // 4) Firmantes (con roles predeterminados y negritas en títulos)
-      textBlock(doc, "Por Jerárquicos Salud:", CONTENT_W, y, {fontSize:12, bold:true, after:8});
-      textBlock(doc, `${auxiliar} – Comercial de Convenios`, CONTENT_W, y, {fontSize:12, after:6});
-      textBlock(doc, `${referente} – Referente del Área Comercial de Convenios`, CONTENT_W, y, {fontSize:12, after:GAP_BETWEEN_SIGS});
-
-      textBlock(doc, "Por el Convenio:", CONTENT_W, y, {fontSize:12, bold:true, after:8});
-      textBlock(doc, firmante, CONTENT_W, y, {fontSize:12, after:3});
-      textBlock(doc, firmanteEmail, CONTENT_W, y, {fontSize:11, after: (subgerente ? 8 : GAP_TO_FOOT_NOTES)});
-      if ((subgerente||"").trim()!==""){
-        textBlock(doc, `${subgerente} – Sub gerente`, CONTENT_W, y, {fontSize:12, after:GAP_TO_FOOT_NOTES});
+      // Medir tamaños para calcular altura proporcional
+      async function measure(dataURL){
+        if(!dataURL) return null;
+        return await new Promise(res=>{
+          const img = new Image();
+          img.onload = () => res({w: img.width, h: img.height});
+          img.onerror = () => res(null);
+          img.src = dataURL;
+        });
       }
 
-      // 5) CLONA y TA al pie (letra más chica)
-      if (clona === "SI" && (conveniosClona||"").trim()!==""){
-        textBlock(doc, "CLONA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
-        textBlock(doc, conveniosClona, CONTENT_W, y, {fontSize:10, lineH:4.6, after:8});
-      }
-      if ((numerosTA||"").trim()!==""){
-        textBlock(doc, "TA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
-        textBlock(doc, numerosTA, CONTENT_W, y, {fontSize:10, lineH:4.6, after:2});
-      }
+      const hs = await measure(headerDataURL);
+      if (hs && hs.w) headerH = Math.min(CONTENT_W * (hs.h/hs.w), HEADER_MAX_H);
 
-      pdfDoc = doc;
-      document.getElementById('preview').style.display = 'block';
-      document.getElementById('preview').scrollIntoView({ behavior:'smooth' });
-
-    } catch (err) {
-      console.error(err);
-      alert("Ups, hubo un error generando el PDF. Revisá la consola del navegador para más detalles.");
+      const fs = await measure(footerDataURL);
+      if (fs && fs.w) footerH = Math.min(CONTENT_W * (fs.h/fs.w), FOOTER_MAX_H);
     }
-  }
 
-  function descargarPDF(){
-    if (pdfDoc){
-      const numero   = (document.getElementById('numeroConvenio').value || "").trim();
-      const nombre   = (document.getElementById('nombreConvenio').value || "").trim();
-      const vigencia = (document.getElementById('vigencia').value || "").trim();
-      const safe = s => s.replace(/\s+/g,' ').replace(/[/\\:*?"<>|]+/g,'_').trim();
-      const file = `${safe(numero)} - ${safe(nombre)} - ${safe(vigencia)}` || 'NotaSignatura';
-      pdfDoc.save(`${file}.pdf`);
+    function addHeaderFooter(doc){
+      if (headerDataURL) doc.addImage(headerDataURL, "PNG", MARGIN_X, 10, CONTENT_W, headerH);
+      if (footerDataURL) doc.addImage(footerDataURL, "PNG", MARGIN_X, PAGE_H - footerH - 8, CONTENT_W, footerH);
     }
-  }
 
-  // Exponer a los botones
-  window.generarPDF = generarPDF;
-  window.descargarPDF = descargarPDF;
-</script>
+    function topY(){ return 10 + (headerDataURL ? headerH : 0) + 12; }
+    function bottomY(){ return PAGE_H - (footerDataURL ? footerH : 0) - 16; }
+
+    function ensureSpace(doc, needed, yRef){
+      if (yRef.value + needed > bottomY()){
+        doc.addPage(); addHeaderFooter(doc); yRef.value = topY();
+      }
+    }
+
+    function textBlock(doc, value, width, yRef, opt={}){
+      const {
+        fontSize=12, lineH=5.4, align="left",
+        before=0, after=4, bold=false
+      } = opt;
+      const v = (value || "").toString().trim();
+      if (!v) return;
+      yRef.value += before;
+      doc.setFont(undefined, bold ? "bold" : "normal");
+      doc.setFontSize(fontSize);
+      const lines = doc.splitTextToSize(v, width);
+      const h = lines.length * lineH + 1;
+      ensureSpace(doc, h, yRef);
+      doc.text(lines, MARGIN_X, yRef.value, { align });
+      yRef.value += h + after;
+    }
+
+    // -------------------------------------------------------------
+    let pdfDoc = null;
+
+    async function generarPDF(){
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+        // Aseguramos membrete/pie (si falla, igual se genera)
+        await ensureHeaderFooterLoaded();
+        addHeaderFooter(doc);
+
+        // Captura del formulario
+        const fecha          = formatDateDMY(document.getElementById('fecha').value);
+        const provincia      = document.getElementById('provincia').value;
+        const nombreConvenio = document.getElementById('nombreConvenio').value;
+        const numeroConvenio = document.getElementById('numeroConvenio').value;
+        const vigencia       = document.getElementById('vigencia').value;
+
+        const cuerpoNota     = document.getElementById('cuerpoNota').value;
+
+        const auxiliar       = document.getElementById('auxiliar').value;
+        const referente      = document.getElementById('referente').value;
+        const subgerente     = document.getElementById('subgerente').value;
+        const firmante       = document.getElementById('firmante').value;
+        const firmanteEmail  = document.getElementById('firmanteEmail').value;
+
+        const clona          = document.getElementById('clona').value;
+        const conveniosClona = document.getElementById('conveniosClona').value;
+        const numerosTA      = document.getElementById('numerosTA').value;
+
+        // Composición tipo carta + más espacio entre bloques
+        let y = { value: topY() };
+
+        // 1) Encabezado (fecha y datos)
+        textBlock(doc, fecha, CONTENT_W, y, {fontSize:12, after:6});
+        textBlock(doc, nombreConvenio, CONTENT_W, y, {fontSize:12, after:2});
+        textBlock(doc, `Convenio ${numeroConvenio} – ${provincia}`, CONTENT_W, y, {fontSize:12, after:GAP_AFTER_HEADER});
+
+        // separador suave
+        ensureSpace(doc, 6, y);
+        doc.setDrawColor(170); doc.setLineWidth(0.35);
+        doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value);
+        y.value += GAP_AFTER_HEADER;
+
+        // 2) A quien corresponda
+        textBlock(doc, "A quien corresponda:", CONTENT_W, y, {fontSize:12, bold:true, after:10});
+
+        // 3) Cuerpo (párrafos)
+        textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:GAP_AFTER_BODY});
+
+        // 4) Firmantes (roles predeterminados y negritas en títulos)
+        textBlock(doc, "Por Jerárquicos Salud:", CONTENT_W, y, {fontSize:12, bold:true, after:8});
+        textBlock(doc, `${auxiliar} – Comercial de Convenios`, CONTENT_W, y, {fontSize:12, after:6});
+        textBlock(doc, `${referente} – Referente del Área Comercial de Convenios`, CONTENT_W, y, {fontSize:12, after:GAP_BETWEEN_SIGS});
+
+        textBlock(doc, "Por el Convenio:", CONTENT_W, y, {fontSize:12, bold:true, after:8});
+        textBlock(doc, firmante, CONTENT_W, y, {fontSize:12, after:3});
+        textBlock(doc, firmanteEmail, CONTENT_W, y, {fontSize:11, after: (subgerente ? 8 : GAP_TO_FOOT_NOTES)});
+        if ((subgerente||"").trim()!==""){
+          textBlock(doc, `${subgerente} – Sub gerente`, CONTENT_W, y, {fontSize:12, after:GAP_TO_FOOT_NOTES});
+        }
+
+        // 5) CLONA y TA al pie (letra más chica)
+        if (clona === "SI" && (conveniosClona||"").trim()!==""){
+          textBlock(doc, "CLONA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
+          textBlock(doc, conveniosClona, CONTENT_W, y, {fontSize:10, lineH:4.6, after:8});
+        }
+        if ((numerosTA||"").trim()!==""){
+          textBlock(doc, "TA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
+          textBlock(doc, numerosTA, CONTENT_W, y, {fontSize:10, lineH:4.6, after:2});
+        }
+
+        pdfDoc = doc;
+        document.getElementById('preview').style.display = 'block';
+        document.getElementById('preview').scrollIntoView({ behavior:'smooth' });
+
+      } catch (err) {
+        console.error(err);
+        alert("Ups, hubo un error generando el PDF. Revisá la consola del navegador para más detalles.");
+      }
+    }
+
+    function descargarPDF(){
+      if (pdfDoc){
+        const numero   = (document.getElementById('numeroConvenio').value || "").trim();
+        const nombre   = (document.getElementById('nombreConvenio').value || "").trim();
+        const vigencia = (document.getElementById('vigencia').value || "").trim();
+        const safe = s => s.replace(/\s+/g,' ').replace(/[/\\:*?"<>|]+/g,'_').trim();
+        const file = `${safe(numero)} - ${safe(nombre)} - ${safe(vigencia)}` || 'NotaSignatura';
+        pdfDoc.save(`${file}.pdf`);
+      }
+    }
+
+    // Exponer a los botones (por si el HTML usa onclick)
+    window.generarPDF = generarPDF;
+    window.descargarPDF = descargarPDF;
+  </script>
+</body>
+</html>
