@@ -197,8 +197,8 @@
 
     const REFERENTE_FIJO = "Leonardo Sibilia";
 
-    // URL del Web App de Apps Script (REEMPLAZAR por la tuya)
-    const WEBAPP_URL = "https://script.google.com/macros/s/TU_DEPLOY_ID/exec";
+    // URL del Web App de Apps Script (ya con tu valor real)
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxCB2fD7V7LiHVE50MXnqMaZcESrns1xaBP7LMYzMwvu24EvkA0n-B6Wgtw3jlmpM_f/exec";
 
     /* ===================== ESTADO/UI ===================== */
     let headerImg, footerImg, pdfDoc = null;
@@ -613,8 +613,8 @@
 
     // ====== Guardar en Google Sheets (Apps Script Web App) ======
     async function guardarEnSheet(){
-      if (!WEBAPP_URL || WEBAPP_URL.includes("TU_DEPLOY_ID")){
-        alert("Configurá WEBAPP_URL con la URL del Web App de Apps Script.");
+      if (!WEBAPP_URL){
+        alert("Falta WEBAPP_URL del Web App de Apps Script.");
         return;
       }
       const payload = {
@@ -638,7 +638,6 @@
 
         tablas:   tablesData,
         imagenes: imagesData.map(({dataURL, name}) => ({dataURL,name}))
-        // secret: "OPCIONAL_TOKEN"
       };
 
       try{
