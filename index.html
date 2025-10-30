@@ -6,28 +6,49 @@
   <title>Generador de Nota de Signatura</title>
   <style>
     *{box-sizing:border-box}
-    body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:#f2f4f8;margin:0;padding:24px}
-    .container{max-width:920px;margin:0 auto;background:#fff;padding:28px 24px;border-radius:16px;box-shadow:0 12px 40px rgba(16,24,40,.08)}
+    body{
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background:#f2f4f8;margin:0;padding:24px
+    }
+    .container{
+      max-width:920px;margin:0 auto;background:#fff;padding:28px 24px;
+      border-radius:16px;box-shadow:0 12px 40px rgba(16,24,40,.08)
+    }
     h1{margin:0 0 6px;text-align:center;color:#1f2937;font-size:26px}
     .subtitle{margin:0 0 20px;text-align:center;color:#6b7280;font-size:14px}
+
+    /* Grillas y alineación */
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     .full{grid-column:1 / -1}
+    .row-inline{display:flex;gap:12px;align-items:flex-end}
+    .row-inline > *{flex:1}
+
     label{display:block;font-weight:600;color:#111827;margin-bottom:6px;font-size:14px}
-    input,select,textarea{width:100%;padding:12px;border:1.8px solid #e5e7eb;border-radius:10px;font-size:15px;font-family:inherit;background:#fff;outline:none;transition:border-color .2s}
-    textarea{min-height:140px;resize:vertical}
+    input,select,textarea{
+      width:100%;padding:12px;border:1.8px solid #e5e7eb;border-radius:10px;
+      font-size:15px;font-family:inherit;background:#fff;outline:none;transition:border-color .2s
+    }
     input:focus,select:focus,textarea:focus{border-color:#6366f1}
+    textarea{min-height:140px;resize:vertical}
+
     .section{background:#f9fafb;border:1px solid #eef2f7;padding:16px;border-radius:12px;margin:18px 0}
     .section h3{margin:0 0 10px;font-size:16px;color:#1f2937}
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:700;background:#6366f1;color:#fff;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(99,102,241,.25);transition:transform .15s}
+
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:12px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:700;
+      background:#6366f1;color:#fff;width:100%;font-size:16px;
+      box-shadow:0 8px 20px rgba(99,102,241,.25);transition:transform .15s
+    }
     .btn:hover{transform:translateY(-1px)}
     .btn-secondary{background:#111827}
     .stack{display:flex;gap:10px;flex-wrap:wrap}
     .stack .btn{width:auto}
-    .preview{margin-top:18px;display:none}
-    .note{font-size:12px;color:#6b7280;margin-top:8px}
-    .row-inline{display:flex;gap:12px;align-items:flex-end}
-    .row-inline > div{flex:1}
+
     .hint{font-size:12px;color:#6b7280;margin-top:6px}
+    .preview{margin-top:18px;display:none}
+
     #richDrop{padding:12px;border:1.8px dashed #cbd5e1;border-radius:10px;background:#fff;min-height:80px}
     #richDrop:focus{outline:none;border-color:#6366f1}
     .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:12px}
@@ -36,7 +57,11 @@
     .thumb .label{padding:6px 8px;font-size:12px;color:#374151;border-top:1px solid #eef2f7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     table.preview{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb}
     table.preview th, table.preview td{border:1px solid #e5e7eb;padding:6px 8px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    @media (max-width:760px){.grid{grid-template-columns:1fr}.row-inline{flex-direction:column}}
+
+    @media (max-width:760px){
+      .grid2,.grid{grid-template-columns:1fr}
+      .row-inline{flex-direction:column}
+    }
   </style>
 </head>
 <body>
@@ -48,15 +73,17 @@
     <div class="section">
       <h3>Datos del Convenio</h3>
 
-      <div class="row-inline">
+      <!-- Alineado 2 columnas: Fecha | Nº de convenio + Buscar -->
+      <div class="grid2">
         <div>
           <label>Fecha (automática)</label>
-          <input type="date" id="fecha" readonly>
+          <input type="text" id="fecha" readonly>
         </div>
+
         <div>
           <label>Nº de convenio (para autocompletar)</label>
           <div class="row-inline">
-            <input type="text" id="numeroConvenioLookup" placeholder="Ej: 88">
+            <input type="text" id="numeroConvenio" placeholder="Ej: 88">
             <button class="btn btn-secondary" style="width:auto" onclick="buscarDesdeSheets()">Buscar</button>
           </div>
           <div class="hint">Recorre todas las hojas del archivo y completa los campos si encuentra el número.</div>
@@ -67,10 +94,6 @@
         <div class="full">
           <label>Nombre del Convenio</label>
           <input type="text" id="nombreConvenio">
-        </div>
-        <div class="full">
-          <label>Número de Convenio</label>
-          <input type="text" id="numeroConvenio">
         </div>
         <div>
           <label>Provincia</label>
@@ -90,15 +113,15 @@
     <!-- CUERPO -->
     <div class="section">
       <h3>Cuerpo de la Nota</h3>
-      <textarea id="cuerpoNota">Por medio del presente se acuerda el siguiente incremento:</textarea>
-      <div class="hint">Podés editar el texto y agregar más contenido libremente.</div>
+      <textarea id="cuerpoNota" placeholder="Escriba aquí el contenido principal de la nota...">Por medio del presente se acuerda el siguiente incremento:</textarea>
+      <div class="hint">Podés editar y agregar más texto libremente.</div>
     </div>
 
     <!-- ADJUNTOS -->
     <div class="section">
       <h3>Adjuntos (imágenes / grillas)</h3>
       <div id="richDrop" contenteditable="true" placeholder="Pegá acá imágenes o tablas (Excel/Sheets). También podés arrastrar archivos."></div>
-      <div class="hint">Se previsualiza y en el PDF se inserta <b>antes</b> del bloque de firmas. Nunca lo rompe.</div>
+      <div class="hint">Se insertan en el PDF <b>antes</b> del bloque de firmantes (sin superponerse).</div>
       <div id="gallery" class="gallery"></div>
       <div id="tablesPreview"></div>
       <input type="file" id="imgInput" accept="image/*" multiple style="margin-top:10px">
@@ -108,11 +131,6 @@
     <div class="section">
       <h3>Firmantes</h3>
       <div class="grid">
-        <div>
-          <label>Reemplazo temporal (opcional)</label>
-          <input id="auxiliarReemp" placeholder="Si alguien reemplaza al auxiliar titular, escribilo aquí">
-          <div class="hint">Si completás este campo, ese nombre irá al PDF. La hoja de Google Sheets sigue siendo la del auxiliar titular.</div>
-        </div>
         <div><label>Auxiliar</label><input id="auxiliar"></div>
         <div><label>Referente</label><input id="referente"></div>
         <div><label>Subgerente (opcional)</label><input id="subgerente"></div>
@@ -150,8 +168,6 @@
       <button class="btn" onclick="generarPDF()">🔄 Generar PDF</button>
       <button class="btn btn-secondary" onclick="guardarEnSheet()">💾 Guardar en Google Sheets</button>
     </div>
-    <div class="note">El guardado actualiza o agrega la fila en la hoja del comercial (misma planilla).</div>
-
     <div class="preview" id="preview">
       <p style="color:#10b981;font-weight:700;margin:10px 0 0">✅ Documento listo:</p>
       <button class="btn" style="background:#10b981;margin-top:8px" onclick="descargarPDF()">📥 Descargar PDF</button>
@@ -176,29 +192,36 @@
     // Agregá todas tus pestañas con su gid
     const SHEETS = [
       { name: "Juan Pablo Trossero", gid: "0" },
-      { name: "Nicolás Molli",      gid: "1501569361" },
-      { name: "Fernando Giordano",  gid: "668272714" },
-      { name: "Exequiel Mayans",    gid: "1420990071" },
-      { name: "Emiliano Riestra",   gid: "1479565861" },
-      { name: "Ulises Velázquez",   gid: "2047859109" },
-      { name: "Javier Díaz",        gid: "1613846456" },
+      { name: "Nicolás Molli",       gid: "1501569361" },
+      { name: "Fernando Giordano",   gid: "668272714" },
+      { name: "Exequiel Mayans",     gid: "1420990071" },
+      { name: "Emiliano Riestra",    gid: "1479565861" },
+      { name: "Ulises Velázquez",    gid: "2047859109" },
+      { name: "Javier Díaz",         gid: "1613846456" },
     ];
 
     const REFERENTE_FIJO = "Leonardo Sibilia";
 
-    // URL del Web App de Apps Script (TU URL real)
+    // URL del Web App de Apps Script (reemplazá por la tuya)
     const WEBAPP_URL = "https://script.google.com/macros/s/TU_DEPLOY_ID/exec";
 
     /* ===================== ESTADO/UI ===================== */
     let headerImg, footerImg, pdfDoc = null;
-    document.getElementById("fecha").value = new Date().toISOString().slice(0,10);
+    // Fecha automática en formato DD/MM/AAAA
+    (function setToday(){
+      const d = new Date();
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const yyyy = d.getFullYear();
+      document.getElementById("fecha").value = `${dd}/${mm}/${yyyy}`;
+    })();
 
     function toggleClona(){
       document.getElementById("clonaBox").style.display =
         document.getElementById("clona").value === "SI" ? "block" : "none";
     }
 
-    // ====== Adjuntos (galería) ======
+    /* ===================== ADJUNTOS ===================== */
     const imagesData = [];    // [{dataURL,w,h,name}]
     const tablesData = [];    // [ [row...] ]
     const gallery = document.getElementById('gallery');
@@ -223,8 +246,8 @@
         tb.appendChild(tr);
       });
       tbl.appendChild(tb);
-      tablesPreview.appendChild(wrapper);
       wrapper.appendChild(tbl);
+      tablesPreview.appendChild(wrapper);
     }
 
     const drop = document.getElementById('richDrop');
@@ -256,9 +279,7 @@
         if (tbl){
           const rows = [...tbl.rows].map(r => [...r.cells].map(c => c.innerText.trim()));
           if (rows.length && rows[0].length){
-            tablesData.push(rows);
-            addTablePreview(rows);
-            handled = true;
+            tablesData.push(rows); addTablePreview(rows); handled = true;
           }
         }
       }
@@ -267,10 +288,7 @@
         const text = cd.getData("text/plain");
         if (text && text.includes("\t")){
           const rows = text.split(/\r?\n/).filter(Boolean).map(line => line.split("\t").map(s=>s.trim()));
-          if (rows.length && rows[0].length){
-            tablesData.push(rows);
-            addTablePreview(rows);
-          }
+          if (rows.length && rows[0].length){ tablesData.push(rows); addTablePreview(rows); }
         }
       }
     });
@@ -297,20 +315,16 @@
 
     function fileToDataURL(file){
       return new Promise(res=>{
-        const fr = new FileReader();
-        fr.onload = ()=>res(fr.result);
-        fr.readAsDataURL(file);
+        const fr = new FileReader(); fr.onload = ()=>res(fr.result); fr.readAsDataURL(file);
       });
     }
     function measureDataURL(dataURL){
       return new Promise(res=>{
-        const img = new Image();
-        img.onload = ()=>res({w:img.width, h:img.height});
-        img.src = dataURL;
+        const img = new Image(); img.onload = ()=>res({w:img.width, h:img.height}); img.src = dataURL;
       });
     }
 
-    // ====== Imágenes membrete/pie y helpers PDF ======
+    /* ===================== PDF ===================== */
     function loadImage(url){
       return new Promise((res,rej)=>{
         const img=new Image(); img.crossOrigin="anonymous";
@@ -335,11 +349,16 @@
       if (headerImg) doc.addImage(headerImg, "PNG", MARGIN_X, 10, CONTENT_W, HEADER_H);
       if (footerImg) doc.addImage(footerImg, "PNG", MARGIN_X, PAGE_H - FOOTER_H - 8, CONTENT_W, FOOTER_H);
     }
+    // Arial (fallback a Helvetica si Arial no está embebida)
+    function setFontSafe(doc, weight="normal"){
+      try{ doc.setFont("arial", weight); }
+      catch(e){ doc.setFont("helvetica", weight); }
+    }
     function textBlock(doc, value, width, yRef, opt={}){
       const { fontSize=12, lineH=5.4, align="left", before=0, after=4, bold=false } = opt;
       const v = (value || "").toString().trim(); if (!v) return;
       yRef.value += before;
-      doc.setFont("helvetica", bold ? "bold":"normal"); doc.setFontSize(fontSize);
+      setFontSafe(doc, bold ? "bold":"normal"); doc.setFontSize(fontSize);
       const lines = doc.splitTextToSize(v, width);
       const h = lines.length * lineH + 1;
       ensureSpace(doc, h, yRef);
@@ -352,17 +371,16 @@
       yRef.value += before;
       const lines = doc.splitTextToSize(v, width); const h = lines.length * lineH + 1;
       if (yRef.value + h > bottomY()){ doc.addPage(); addHeaderFooter(doc); yRef.value = topY(); }
-      doc.setFont("helvetica", bold?"bold":"normal"); doc.setFontSize(fontSize);
+      setFontSafe(doc, bold?"bold":"normal"); doc.setFontSize(fontSize);
       doc.text(lines, x, yRef.value); yRef.value += h + after;
     }
 
     async function generarPDF(){
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit:"mm", format:"a4" });
-      await ensureImages();
-      addHeaderFooter(doc);
+      await ensureImages(); addHeaderFooter(doc); setFontSafe(doc,"normal");
 
-      const fecha          = formatDateDMY(document.getElementById("fecha").value);
+      const fecha          = document.getElementById("fecha").value;
       const provincia      = document.getElementById("provincia").value;
       const nombreConvenio = document.getElementById("nombreConvenio").value;
       const numeroConvenio = document.getElementById("numeroConvenio").value;
@@ -370,9 +388,6 @@
       const cuerpoNota     = document.getElementById("cuerpoNota").value;
 
       const auxiliar       = document.getElementById("auxiliar").value;
-      const auxiliarReemp  = document.getElementById("auxiliarReemp").value.trim();
-      const auxiliarParaPDF = auxiliarReemp || auxiliar; // << usa reemplazo si hay
-
       const referente      = (document.getElementById("referente").value || REFERENTE_FIJO);
       const subgerente     = document.getElementById("subgerente").value;
       const firmante       = document.getElementById("firmante").value;
@@ -391,13 +406,13 @@
       if (prestadorEmail.trim()!==""){ textBlock(doc, prestadorEmail, CONTENT_W, y, {fontSize:11, after:14}); }
       else { y.value += 14; }
 
-      // separador
+      // Separador
       ensureSpace(doc, 6, y); doc.setDrawColor(170); doc.setLineWidth(0.35);
-      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value); y.value += 14;
+      doc.line(MARGIN_X, y.value, PAGE_W - MARGIN_X, y.value); y.value += 16;
 
-      // Cuerpo
+      // Cuerpo (más aire antes de firmas)
       textBlock(doc, "A quien corresponda:", CONTENT_W, y, {fontSize:12, bold:true, after:10});
-      textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:18});
+      textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:26}); // <-- más espacio
 
       // TABLAS
       for (const rows of tablesData){
@@ -413,7 +428,7 @@
           tableWidth: 'auto',
           pageBreak: 'auto'
         });
-        y.value = doc.lastAutoTable.finalY + 8;
+        y.value = doc.lastAutoTable.finalY + 10;
       }
 
       // IMÁGENES
@@ -423,7 +438,7 @@
         if (h > maxH){ h = maxH; w = h * (img.w/img.h); }
         ensureSpace(doc, h+8, y);
         doc.addImage(img.dataURL, "PNG", MARGIN_X, y.value, w, h);
-        y.value += h + 8;
+        y.value += h + 10;
       }
 
       // Firmas en 2 columnas
@@ -432,7 +447,7 @@
       let yLeft = { value: y.value }, yRight = { value: y.value };
 
       textBlockAt(doc, "Por Jerárquicos Salud:", xLeft, colW, yLeft, {bold:true, fontSize:12, after:10});
-      textBlockAt(doc, `${auxiliarParaPDF} — Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
+      textBlockAt(doc, `${auxiliar} — Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
       textBlockAt(doc, `${referente} — Referente del Área Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
 
       textBlockAt(doc, "Por el Convenio:", xRight, colW, yRight, {bold:true, fontSize:12, after:10});
@@ -466,29 +481,30 @@
       const file = `${safe(numero)} - ${safe(nombre)} - ${safe(vigencia)}` || 'NotaSignatura';
       pdfDoc.save(`${file}.pdf`);
     }
-    function formatDateDMY(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-"); return `${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`; }
 
-    /* ====== AUTOCOMPLETAR MULTI-HOJA (CSV por gid) ====== */
+    /* ===================== AUTOCOMPLETAR ===================== */
     const norm = (s) => String(s || "")
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
-    const onlyDigits = (s) => String(s || "").replace(/\D+/g, "");
+
+    const onlyDigits = (s) => String(s||"").replace(/[^0-9]/g,'');
 
     function buildHeaderIndex(headers) {
       const map = {};
-      const H = headers.map(h => norm(h));
-      const find = (re) => H.findIndex(h => re.test(h));
-      map["numeroconvenio"] = find(/(^| )numero( | )de( | )convenio( |$)/);
-      map["nombreconvenio"] = find(/(^| )nombre( | )del( | )convenio( |$)/);
-      map["provincia"]      = find(/^provincia$/);
-      map["prestadoremail"] = find(/(^| )correo( | )del( | )convenio( |$)/);
-      map["auxiliar"]       = find(/(^| )nombre( | )del( | )auxiliar( |$)/);
-      map["referente"]      = find(/(^| )nombre( | )del( | )referente( |$)/);
-      map["subgerente"]     = find(/(^| )subgerente( |$)/);
-      map["firmante"]       = find(/(^| )nombre( | )del( | )firmante( | )del( | )convenio/);
-      map["cargofirmante"]  = find(/(^| )cargo( | )del( | )firmante/);
-      map["vigencia"]       = find(/^vigencia$/);
-      map["cuerponota"]     = find(/(^| )cuerpo( | )de( | )la( | )nota( |$)/);
+      headers.forEach((h, i) => {
+        const n = norm(h);
+        if (/(^| )numero( | )de( | )convenio( |$)/.test(n))        map["numeroconvenio"] = i;
+        else if (/(^| )nombre( | )del( | )convenio( |$)/.test(n))  map["nombreconvenio"] = i;
+        else if (/^provincia$/.test(n))                            map["provincia"] = i;
+        else if (/(^| )correo( | )del( | )convenio( |$)/.test(n))  map["prestadoremail"] = i;
+        else if (/(^| )nombre( | )del( | )auxiliar( |$)/.test(n))  map["auxiliar"] = i;
+        else if (/(^| )nombre( | )del( | )referente( |$)/.test(n)) map["referente"] = i;
+        else if (/(^| )subgerente( |$)/.test(n))                   map["subgerente"] = i;
+        else if (/(^| )nombre( | )del( | )firmante( | )del( | )convenio/.test(n)) map["firmante"] = i;
+        else if (/(^| )cargo( | )del( | )firmante/.test(n))        map["cargofirmante"] = i;
+        else if (/^vigencia$/.test(n))                             map["vigencia"] = i;
+        else if (/(^| )cuerpo( | )de( | )la( | )nota( |$)/.test(n)) map["cuerponota"] = i;
+      });
       return map;
     }
 
@@ -509,7 +525,7 @@
     }
 
     async function buscarDesdeSheets(){
-      const numero = (document.getElementById("numeroConvenioLookup").value || "").trim();
+      const numero = (document.getElementById("numeroConvenio").value || "").trim();
       if (!numero){ alert("Ingresá un número de convenio"); return; }
       const needle = onlyDigits(numero);
 
@@ -527,15 +543,13 @@
             const headerReal = headers[i]; return row[headerReal] ?? "";
           };
 
-          let found = rows.find(r => onlyDigits(get(r, "numeroconvenio")) === needle);
-          if (!found){
-            found = rows.find(r => headers.some(h => onlyDigits(r[h]) === needle));
-          }
+          const found = rows.find(r => onlyDigits(get(r,"numeroconvenio")) === needle);
           if (!found) continue;
 
           const auxiliar = get(found, "auxiliar") || s.name;
 
-          setIf("numeroConvenio",  get(found, "numeroconvenio") || numero);
+          // Seteos
+          setIf("numeroConvenio",  get(found, "numeroconvenio"));
           setIf("nombreConvenio",  get(found, "nombreconvenio"));
           setIf("provincia",       get(found, "provincia"));
           setIf("prestadorEmail",  get(found, "prestadoremail"));
@@ -563,14 +577,14 @@
       alert("No se encontró ese número en ninguna hoja.");
     }
 
-    // ====== Guardar en Google Sheets (Apps Script Web App) ======
+    /* ===================== GUARDADO EN SHEETS (WEB APP) ===================== */
     async function guardarEnSheet(){
       if (!WEBAPP_URL || WEBAPP_URL.includes("TU_DEPLOY_ID")){
         alert("Configurá WEBAPP_URL con la URL del Web App de Apps Script.");
         return;
       }
       const payload = {
-        comercial:      document.getElementById('auxiliar').value || 'Juan Pablo Trossero', // HOJA: titular
+        comercial:      document.getElementById('auxiliar').value || 'Juan Pablo Trossero',
         numeroConvenio: document.getElementById('numeroConvenio').value,
         nombreConvenio: document.getElementById('nombreConvenio').value,
         provincia:      document.getElementById('provincia').value,
@@ -587,9 +601,6 @@
         clona:          document.getElementById('clona').value,
         conveniosClona: document.getElementById('conveniosClona').value,
         numerosTA:      document.getElementById('numerosTA').value,
-
-        // Informativo: quién generó (reemplazo o titular)
-        generadoPor:    (document.getElementById('auxiliarReemp').value || document.getElementById('auxiliar').value),
 
         tablas:   tablesData,
         imagenes: imagesData.map(({dataURL, name}) => ({dataURL,name}))
