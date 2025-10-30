@@ -90,28 +90,8 @@
     <!-- CUERPO -->
     <div class="section">
       <h3>Cuerpo de la Nota</h3>
-
-      <!-- Selecciones múltiples -->
-      <div class="grid" style="margin-bottom:10px">
-        <div class="full" style="display:flex; gap:16px; flex-wrap:wrap">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="checkbox" id="optIncremento" onchange="updateCuerpoFromSelections()">
-            Incremento general
-          </label>
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="checkbox" id="optIncorporacion" onchange="updateCuerpoFromSelections()">
-            Incorporación de práctica
-          </label>
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="checkbox" id="optReestructuracion" onchange="updateCuerpoFromSelections()">
-            Reestructuración
-          </label>
-        </div>
-      </div>
-
-      <!-- Texto editable final -->
-      <textarea id="cuerpoNota" placeholder="Tildá opciones arriba; acá podés seguir escribiendo."></textarea>
-      <div class="hint">El bloque auto-generado se actualiza sin borrar lo que agregues manualmente.</div>
+      <textarea id="cuerpoNota">Por medio del presente se acuerda el siguiente incremento:</textarea>
+      <div class="hint">Podés editar el texto y agregar más contenido libremente.</div>
     </div>
 
     <!-- ADJUNTOS -->
@@ -128,6 +108,11 @@
     <div class="section">
       <h3>Firmantes</h3>
       <div class="grid">
+        <div>
+          <label>Reemplazo temporal (opcional)</label>
+          <input id="auxiliarReemp" placeholder="Si alguien reemplaza al auxiliar titular, escribilo aquí">
+          <div class="hint">Si completás este campo, ese nombre irá al PDF. La hoja de Google Sheets sigue siendo la del auxiliar titular.</div>
+        </div>
         <div><label>Auxiliar</label><input id="auxiliar"></div>
         <div><label>Referente</label><input id="referente"></div>
         <div><label>Subgerente (opcional)</label><input id="subgerente"></div>
@@ -190,19 +175,19 @@
 
     // Agregá todas tus pestañas con su gid
     const SHEETS = [
-  { name: "Juan Pablo Trossero", gid: "0" },
-  { name: "Nicolás Molli", gid: "1501569361" },
-  { name: "Fernando Giordano", gid: "668272714" },
-  { name: "Exequiel Mayans", gid: "1420990071" },
-  { name: "Emiliano Riestra", gid: "1479565861" },
-  { name: "Ulises Velázquez", gid: "2047859109" },
-  { name: "Javier Díaz", gid: "1613846456" },
+      { name: "Juan Pablo Trossero", gid: "0" },
+      { name: "Nicolás Molli",      gid: "1501569361" },
+      { name: "Fernando Giordano",  gid: "668272714" },
+      { name: "Exequiel Mayans",    gid: "1420990071" },
+      { name: "Emiliano Riestra",   gid: "1479565861" },
+      { name: "Ulises Velázquez",   gid: "2047859109" },
+      { name: "Javier Díaz",        gid: "1613846456" },
     ];
 
     const REFERENTE_FIJO = "Leonardo Sibilia";
 
-    // URL del Web App de Apps Script (ya con tu valor real)
-    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxCB2fD7V7LiHVE50MXnqMaZcESrns1xaBP7LMYzMwvu24EvkA0n-B6Wgtw3jlmpM_f/exec";
+    // URL del Web App de Apps Script (TU URL real)
+    const WEBAPP_URL = "https://script.google.com/macros/s/TU_DEPLOY_ID/exec";
 
     /* ===================== ESTADO/UI ===================== */
     let headerImg, footerImg, pdfDoc = null;
@@ -213,47 +198,7 @@
         document.getElementById("clona").value === "SI" ? "block" : "none";
     }
 
-    // ====== Selecciones -> cuerpo (editable) ======
-    const AUTO_START = "[AUTO-TEXTO]";
-    const AUTO_END   = "[/AUTO-TEXTO]";
-
-    function buildAutoTextFromSelections(){
-      const sel = [];
-      if (document.getElementById('optIncremento')?.checked){
-        sel.push("Por medio del presente se acuerda el siguiente incremento:");
-      }
-      if (document.getElementById('optIncorporacion')?.checked){
-        sel.push("Por medio del presente se acuerda la siguiente incorporación:");
-      }
-      if (document.getElementById('optReestructuracion')?.checked){
-        sel.push("Por medio del presente se acuerda la siguiente reestructuración:");
-      }
-      return sel.join("\n\n");
-    }
-    function splitAutoAndManual(text){
-      const i = text.indexOf(AUTO_START);
-      const j = text.indexOf(AUTO_END);
-      if (i !== -1 && j !== -1 && j > i){
-        const auto = text.slice(i + AUTO_START.length, j).trim();
-        const manual = text.slice(j + AUTO_END.length).replace(/^\s+/, "");
-        return { auto, manual };
-      }
-      return { auto: "", manual: text };
-    }
-    function compose(auto, manual){
-      auto = (auto || "").trim();
-      manual = (manual || "").trimStart();
-      return auto ? `${AUTO_START}\n${auto}\n${AUTO_END}\n\n${manual}` : manual;
-    }
-    function updateCuerpoFromSelections(){
-      const ta = document.getElementById('cuerpoNota');
-      const { manual } = splitAutoAndManual(ta.value || "");
-      const newAuto = buildAutoTextFromSelections();
-      ta.value = compose(newAuto, manual);
-      ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length;
-    }
-
-    // ====== Adjuntos (galería para no romper el form/firmas) ======
+    // ====== Adjuntos (galería) ======
     const imagesData = [];    // [{dataURL,w,h,name}]
     const tablesData = [];    // [ [row...] ]
     const gallery = document.getElementById('gallery');
@@ -278,8 +223,8 @@
         tb.appendChild(tr);
       });
       tbl.appendChild(tb);
-      wrapper.appendChild(tbl);
       tablesPreview.appendChild(wrapper);
+      wrapper.appendChild(tbl);
     }
 
     const drop = document.getElementById('richDrop');
@@ -425,6 +370,9 @@
       const cuerpoNota     = document.getElementById("cuerpoNota").value;
 
       const auxiliar       = document.getElementById("auxiliar").value;
+      const auxiliarReemp  = document.getElementById("auxiliarReemp").value.trim();
+      const auxiliarParaPDF = auxiliarReemp || auxiliar; // << usa reemplazo si hay
+
       const referente      = (document.getElementById("referente").value || REFERENTE_FIJO);
       const subgerente     = document.getElementById("subgerente").value;
       const firmante       = document.getElementById("firmante").value;
@@ -451,8 +399,7 @@
       textBlock(doc, "A quien corresponda:", CONTENT_W, y, {fontSize:12, bold:true, after:10});
       textBlock(doc, cuerpoNota, CONTENT_W, y, {fontSize:12, lineH:5.6, after:18});
 
-      // ===== Adjuntos (ANTES de firmas) =====
-      // TABLAS (auto paginado)
+      // TABLAS
       for (const rows of tablesData){
         ensureSpace(doc, 20, y);
         doc.autoTable({
@@ -469,7 +416,7 @@
         y.value = doc.lastAutoTable.finalY + 8;
       }
 
-      // IMÁGENES (ajuste, sin pisar firmas)
+      // IMÁGENES
       for (const img of imagesData){
         const maxW = CONTENT_W, maxH = 110;
         let w = maxW, h = w * (img.h/img.w);
@@ -479,13 +426,13 @@
         y.value += h + 8;
       }
 
-      // ===== Firmas en 2 columnas =====
+      // Firmas en 2 columnas
       const columnGap = 12, colW = (CONTENT_W - columnGap) / 2;
       const xLeft = MARGIN_X, xRight = MARGIN_X + colW + columnGap;
       let yLeft = { value: y.value }, yRight = { value: y.value };
 
       textBlockAt(doc, "Por Jerárquicos Salud:", xLeft, colW, yLeft, {bold:true, fontSize:12, after:10});
-      textBlockAt(doc, `${auxiliar} — Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
+      textBlockAt(doc, `${auxiliarParaPDF} — Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
       textBlockAt(doc, `${referente} — Referente del Área Comercial de Convenios`, xLeft, colW, yLeft, {fontSize:12, after:6});
 
       textBlockAt(doc, "Por el Convenio:", xRight, colW, yRight, {bold:true, fontSize:12, after:10});
@@ -495,7 +442,7 @@
 
       y.value = Math.max(yLeft.value, yRight.value) + 18;
 
-      // CLONA / TA al pie (chico)
+      // CLONA / TA al pie
       if (clona === "SI" && (conveniosClona||"").trim()!==""){
         textBlock(doc, "CLONA", CONTENT_W, y, {fontSize:10, bold:true, after:4});
         textBlock(doc, conveniosClona, CONTENT_W, y, {fontSize:10, lineH:4.6, after:8});
@@ -525,23 +472,23 @@
     const norm = (s) => String(s || "")
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+    const onlyDigits = (s) => String(s || "").replace(/\D+/g, "");
 
     function buildHeaderIndex(headers) {
       const map = {};
-      headers.forEach((h, i) => {
-        const n = norm(h);
-        if (/(^| )numero( | )de( | )convenio( |$)/.test(n))        map["numeroconvenio"] = i;
-        else if (/(^| )nombre( | )del( | )convenio( |$)/.test(n))  map["nombreconvenio"] = i;
-        else if (/^provincia$/.test(n))                            map["provincia"] = i;
-        else if (/(^| )correo( | )del( | )convenio( |$)/.test(n))  map["prestadoremail"] = i;
-        else if (/(^| )nombre( | )del( | )auxiliar( |$)/.test(n))  map["auxiliar"] = i;
-        else if (/(^| )nombre( | )del( | )referente( |$)/.test(n)) map["referente"] = i;
-        else if (/(^| )subgerente( |$)/.test(n))                   map["subgerente"] = i;
-        else if (/(^| )nombre( | )del( | )firmante( | )del( | )convenio/.test(n)) map["firmante"] = i;
-        else if (/(^| )cargo( | )del( | )firmante/.test(n))        map["cargofirmante"] = i;
-        else if (/^vigencia$/.test(n))                             map["vigencia"] = i;
-        else if (/(^| )cuerpo( | )de( | )la( | )nota( |$)/.test(n)) map["cuerponota"] = i;
-      });
+      const H = headers.map(h => norm(h));
+      const find = (re) => H.findIndex(h => re.test(h));
+      map["numeroconvenio"] = find(/(^| )numero( | )de( | )convenio( |$)/);
+      map["nombreconvenio"] = find(/(^| )nombre( | )del( | )convenio( |$)/);
+      map["provincia"]      = find(/^provincia$/);
+      map["prestadoremail"] = find(/(^| )correo( | )del( | )convenio( |$)/);
+      map["auxiliar"]       = find(/(^| )nombre( | )del( | )auxiliar( |$)/);
+      map["referente"]      = find(/(^| )nombre( | )del( | )referente( |$)/);
+      map["subgerente"]     = find(/(^| )subgerente( |$)/);
+      map["firmante"]       = find(/(^| )nombre( | )del( | )firmante( | )del( | )convenio/);
+      map["cargofirmante"]  = find(/(^| )cargo( | )del( | )firmante/);
+      map["vigencia"]       = find(/^vigencia$/);
+      map["cuerponota"]     = find(/(^| )cuerpo( | )de( | )la( | )nota( |$)/);
       return map;
     }
 
@@ -564,6 +511,7 @@
     async function buscarDesdeSheets(){
       const numero = (document.getElementById("numeroConvenioLookup").value || "").trim();
       if (!numero){ alert("Ingresá un número de convenio"); return; }
+      const needle = onlyDigits(numero);
 
       for (const s of SHEETS){
         try{
@@ -579,12 +527,15 @@
             const headerReal = headers[i]; return row[headerReal] ?? "";
           };
 
-          const found = rows.find(r => norm(get(r, "numeroconvenio")) === norm(numero));
+          let found = rows.find(r => onlyDigits(get(r, "numeroconvenio")) === needle);
+          if (!found){
+            found = rows.find(r => headers.some(h => onlyDigits(r[h]) === needle));
+          }
           if (!found) continue;
 
           const auxiliar = get(found, "auxiliar") || s.name;
 
-          setIf("numeroConvenio",  get(found, "numeroconvenio"));
+          setIf("numeroConvenio",  get(found, "numeroconvenio") || numero);
           setIf("nombreConvenio",  get(found, "nombreconvenio"));
           setIf("provincia",       get(found, "provincia"));
           setIf("prestadorEmail",  get(found, "prestadoremail"));
@@ -599,11 +550,8 @@
 
           const cuerpo = get(found, "cuerponota");
           if (cuerpo){
-            const base = "Por medio del presente se acuerda ";
             const ta = document.getElementById('cuerpoNota');
-            const { auto, manual } = splitAutoAndManual(ta.value || "");
-            const extra = base + cuerpo;
-            ta.value = compose(auto, [manual, extra].filter(Boolean).join("\n\n"));
+            ta.value = (ta.value ? ta.value + "\n\n" : "") + cuerpo;
           }
 
           alert(`✔ Datos completados (hoja: ${s.name})`);
@@ -617,12 +565,12 @@
 
     // ====== Guardar en Google Sheets (Apps Script Web App) ======
     async function guardarEnSheet(){
-      if (!WEBAPP_URL){
-        alert("Falta WEBAPP_URL del Web App de Apps Script.");
+      if (!WEBAPP_URL || WEBAPP_URL.includes("TU_DEPLOY_ID")){
+        alert("Configurá WEBAPP_URL con la URL del Web App de Apps Script.");
         return;
       }
       const payload = {
-        comercial:      document.getElementById('auxiliar').value || 'Juan Pablo Trossero',
+        comercial:      document.getElementById('auxiliar').value || 'Juan Pablo Trossero', // HOJA: titular
         numeroConvenio: document.getElementById('numeroConvenio').value,
         nombreConvenio: document.getElementById('nombreConvenio').value,
         provincia:      document.getElementById('provincia').value,
@@ -639,6 +587,9 @@
         clona:          document.getElementById('clona').value,
         conveniosClona: document.getElementById('conveniosClona').value,
         numerosTA:      document.getElementById('numerosTA').value,
+
+        // Informativo: quién generó (reemplazo o titular)
+        generadoPor:    (document.getElementById('auxiliarReemp').value || document.getElementById('auxiliar').value),
 
         tablas:   tablesData,
         imagenes: imagesData.map(({dataURL, name}) => ({dataURL,name}))
@@ -660,14 +611,6 @@
         alert("Error de red guardando en Sheets: " + err.message);
       }
     }
-
-    // Por si querés que “Incremento” esté tildado por defecto:
-    // window.addEventListener('DOMContentLoaded', () => {
-    //   document.getElementById('optIncremento').checked = true;
-    //   updateCuerpoFromSelections();
-    // });
   </script>
 </body>
 </html>
-
-
